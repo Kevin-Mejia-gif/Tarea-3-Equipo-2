@@ -1,0 +1,521 @@
+---
+title: "Ejercicio 3"
+author: "Kevin Mejía Rodríguez"
+date: "04 de mayo del 2026"
+output:
+  pdf_document:
+    toc: false
+  html_document:
+    toc: false
+header-includes:
+  - \pagenumbering{gobble}
+  - \usepackage{caption}
+  - \captionsetup[table]{labelformat=empty}
+---
+
+\newpage
+
+```{r setup, include=FALSE}
+
+knitr::opts_chunk$set(
+  echo = TRUE,
+  warning = FALSE,
+  message = FALSE,
+  fig.width = 8,
+  fig.height = 5
+)
+
+```
+
+``` {r paqueterías, include=FALSE}
+# Cargamos librerías
+if (!require("pacman")) install.packages("pacman")
+
+pacman::p_load(
+  ggplot2,
+  dplyr,
+  tidyr,
+  broom,
+  knitr,
+  kableExtra,
+  zoo,
+  readr,
+  stringr,
+  seasonal,
+  x13binary,
+  scales,
+  lubridate
+)
+```
+
+# Ejercicio 3: Modelo de la $q$ de Tobin y tasas de inversión {-}
+
+El presente ejercicio tiene como objetivo estudiar las determinantes de la inversión corporativa en México, tomando como caso de estudio a Fomento Económico Mexicano, S.A.B. de C.V. (FEMSA), una de las compañías líderes en el sector de bebidas y comercio al detalle con presencia internacional. El análisis se centra en evaluar la capacidad predictiva del modelo de la $q$ de Tobin para explicar las decisiones de inversión de la firma en años recientes.
+
+\textbf{(a) Datos corporativos: FEMSA}
+
+\vspace{0.1cm}
+
+Para la realización de este estudio, se construyó una base de datos con series trimestrales de 2010 a 2025 obtenidas directamente de los reportes financieros de la compañía y de indicadores de mercado. El modelo de la $q$ busca establecer si el valor que el mercado financiero asigna a los activos de FEMSA, en relación con su costo de reposición, puede funcionar como indicativo de las decisiones de inversión.
+
+Los datos fueron extraídos del portal de Relación con Inversionistas de FEMSA y de fuentes complementarias de información bursátil como la Bolsa Mexicana de Valores (BMV). Las variables clave se definieron de la siguiente manera:
+
+* Valor de Mercado de la Empresa (Numerador de $q$): Se calculó sumando la capitalización bursátil de la empresa (precio de la acción multiplicado por el número de acciones en circulación) y el valor en libros de su deuda total.
+
+* Valor en Libros del Capital (Denominador de $q$): Se utilizó el valor total de los activos reportados en el balance general de la compañía como una aproximación al costo de reposición de sus activos.
+
+* Tasa de Inversión ($i$): Construida a partir de los cambios en la cuenta de "Activos fijos" entre periodos consecutivos. En específico, se utilizó la cuenta "Propiedad, planta y equipo" del estado de situación financiera de la empresa.
+
+* Costo de Ajuste: Derivado del análisis de regresión entre la tasa de inversión actual y el valor de la $q$ del periodo anterior, lo que permite inferir qué tan costoso es para FEMSA instalar nuevo capital físico.
+
+\textbf{(b) Construcción de una medida de $q$}
+
+\vspace{0.1cm}
+
+En este apartado se procede a cuantificar la $q$ de Tobin, la cual funge como el indicador central de este análisis. Desde una perspectiva teórica, la $q$ representa el incentivo de una empresa para invertir: si el mercado valora los activos de la firma por encima de su costo de reposición ($q > 1$), existe un estímulo económico para adquirir capital adicional.
+
+Para el caso de FEMSA, la construcción de esta razón se realiza mediante la siguiente metodología, siguiendo los lineamientos del ejercicio:
+
+*   **Numerador (Valor de Mercado):** Se aproxima sumando la capitalización bursátil (precio de cierre de la acción por número de acciones en circulación) y el valor en libros de la deuda total.
+
+*   **Denominador (Valor en Libros):** Se utiliza el valor total de los activos reportado en el balance general como una medida del costo de reposición del capital existente.
+
+La fórmula empleada es:
+
+$$q_{t} = \frac{\text{Valor de acciones}_{t} + \text{Valor de deuda}_{t}}{\text{Activos Totales}_{t}}$$
+
+A continuación, se presenta los resultados obtenidos tomando en cuenta que se utilizó información trimestral que abarca el periodo de 2010 a 2025.
+
+```{r cargar base,  include=FALSE}
+
+options(scipen = 999)
+
+base <- read_csv("C:/Users/lina6/OneDrive/Documentos/Tarea_3_Macro/Base_Ejercicio_3.csv")
+
+base_limpia <- base %>%
+  mutate(
+    trimestre_original = Trimestre,
+    
+    # Extraemos el número de trimestre: 1, 2, 3 o 4
+    trimestre_num = parse_number(str_extract(Trimestre, "^[1-4]")),
+    
+    # Extraemos el año: 2010, 2011, etc.
+    anio = parse_number(str_extract(Trimestre, "\\d{4}")),
+    
+    # Creamos una fecha trimestral ordenable
+    fecha_q = as.yearqtr(anio + (trimestre_num - 1) / 4),
+    
+    # Etiqueta limpia para mostrar en tablas y gráficas
+    trimestre = paste0(trimestre_num, "T", anio),
+    
+    precio_accion = parse_number(as.character(`Precio de la acción al final del periodo`)),
+    acciones_circulacion = parse_number(as.character(`Acciones en circulación`)),
+    deuda_neta = parse_number(as.character(`Deuda neta MDP`)),
+    valor_empresa = parse_number(as.character(`Valor de la empresa`)),
+    valor_libros_activos = parse_number(as.character(`Valor en libros (activos)`)),
+    activos_fijos = parse_number(as.character(`Activos fijos`))
+  ) %>%
+  arrange(fecha_q) %>%
+  select(
+    fecha_q,
+    trimestre,
+    precio_accion,
+    acciones_circulacion,
+    deuda_neta,
+    valor_empresa,
+    valor_libros_activos,
+    activos_fijos
+  )
+
+head(base_limpia)
+
+```
+```{r q de tobin, echo=FALSE, fig.width=6.5, fig.height=4}
+
+base_q <- base_limpia %>%
+  arrange(fecha_q) %>%
+  mutate(
+    q_tobin = valor_empresa / valor_libros_activos
+  )
+
+tabla_q <- base_q %>%
+  select(
+    Trimestre = trimestre,
+    `Valor de la empresa` = valor_empresa,
+    `Valor en libros de activos` = valor_libros_activos,
+    `q de Tobin` = q_tobin
+  )
+
+tabla_q %>%
+  kable(
+    digits = 3,
+    caption = "Tabla. Construcción de la q de Tobin para FEMSA",
+    format = "latex",
+    booktabs = TRUE,
+    longtable = TRUE
+  ) %>%
+  kable_styling(
+    full_width = FALSE,
+    position = "center",
+    latex_options = c("repeat_header")
+  ) %>%
+  footnote(
+    general = "Fuente: elaboración propia con datos de FEMSA y la BMV.",
+    general_title = "",
+    footnote_as_chunk = TRUE,
+    threeparttable = TRUE
+  )
+
+```
+
+```{r q de tobin gráfica,  echo=FALSE, fig.width=6.5, fig.height=4}
+
+breaks_q <- base_q$fecha_q[seq(1, nrow(base_q), by = 4)]
+labels_q <- base_q$trimestre[seq(1, nrow(base_q), by = 4)]
+
+ggplot(base_q, aes(x = fecha_q, y = q_tobin, group = 1)) +
+  geom_line(linewidth = 0.8, color = "steelblue") +
+  geom_point(size = 1.8, color = "firebrick") +
+  geom_hline(yintercept = 1, linetype = "dashed") +
+  scale_x_yearqtr(
+    breaks = breaks_q,
+    labels = labels_q
+  ) +
+  labs(
+    title = "Gráfica. Evolución de la q de Tobin de FEMSA",
+    subtitle = "Razón entre valor de la empresa y valor en libros de los activos",
+    x = "Trimestre",
+    y = "q de Tobin",
+    caption = "Fuente: elaboración propia con datos de FEMSA y la BMV."
+  ) +
+  scale_y_continuous(labels = label_number(accuracy = 0.01)) +
+  theme_minimal() +
+  theme(
+    plot.title = element_text(face = "bold"),
+    plot.caption = element_text(hjust = 0, size = 8),
+    axis.text.x = element_text(angle = 90, vjust = 0.5, size = 6),
+    panel.grid.minor = element_blank(),
+    panel.grid.major.x = element_blank(),
+    panel.grid.major.y = element_line(linewidth = 0.4, color = "grey80")
+  )
+
+```
+La gráfica muestra la evolución trimestral de la \(q\) de Tobin de FEMSA entre 2010 y 2025. Durante todo el periodo, la \(q\) se mantiene por encima de uno, lo que significa que el valor de mercado de la empresa fue superior al valor contable de sus activos. Esto es importante porque, de acuerdo con la teoría, cuando esto sucede, el mercado valora el capital instalado de la empresa por encima de su costo contable, generando incentivos para invertir. 
+
+Entre 2010 y 2013 se observa un periodo de fuerte valorización, con un aumento importante de la \(q\) hasta alcanzar su punto máximo alrededor de 2013. Después este año, la serie muestra una tendencia descendente relativamente clara. Esto puede interpretarse como una reducción en la valoración relativa de mercado de FEMSA frente a su base de activos, en particular, alrededor de 2020 se observa una caída marcada, posiblemente asociada al choque económico y financiero provocado por la pandemia de COVID-19.
+
+A partir de 2021, la \(q\) se estabiliza en niveles más bajos, aunque todavía superiores a uno. En términos del modelo de inversión, esta evolución implicaría menores incentivos relativos para expandir el capital físico en comparación con los años de mayor \(q\).
+
+\textbf{(c) Construcción de una medida de $i$}
+
+\vspace{0.1cm}
+
+En este apartado se construye una aproximación de la variable de inversión ($i$) para FEMSA. A nivel microeconómico, la inversión se define como el flujo de recursos destinados a mantener o incrementar el stock de capital físico de la empresa. 
+
+Dado que el objetivo es analizar la acumulación de capital, utilizaremos la variación porcentual de la partida de "Propiedad, Planta y Equipo", la cual se utiliza como activo fijo, reportada en los estados de situación financiera de la compañía. Esta medida, aunque es una aproximación, captura las decisiones de la firma respecto a la adquisición de maquinaria, construcción de plantas y expansión de su infraestructura logística.
+
+La tasa de inversión se calcula como el cambio porcentual entre periodos consecutivos:
+
+$$i_{t} = \frac{\text{Activos Fijos}_{t} - \text{Activos Fijos}_{t-1}}{\text{Activos Fijos}_{t-1}}$$
+A continuación, se presenta los resultados obtenidos tomando en cuenta que se utilizó información trimestral que abarca el periodo de 2010 a 2025.
+
+```{r Medida de i, echo=FALSE, fig.width=6.5, fig.height=4}
+
+base_i <- base_q %>%
+  arrange(fecha_q) %>%
+  mutate(
+    inversion = (activos_fijos - lag(activos_fijos)) / lag(activos_fijos),
+    inversion_porcentaje = inversion * 100
+  )
+
+tabla_i <- base_i %>%
+  select(
+    Trimestre = trimestre,
+    `Activos fijos` = activos_fijos,
+    `Tasa de inversión` = inversion,
+    `Tasa de inversión (%)` = inversion_porcentaje
+  )
+
+tabla_i %>%
+  kable(
+    digits = 3,
+    caption = "Tabla. Construcción de la tasa de inversión de FEMSA",
+    format = "latex",
+    booktabs = TRUE,
+    longtable = TRUE
+  ) %>%
+  kable_styling(
+    full_width = FALSE,
+    position = "center",
+    latex_options = c("repeat_header")
+  ) %>%
+  footnote(
+    general = "Fuente: elaboración propia con datos de FEMSA y la BMV.",
+    general_title = "",
+    footnote_as_chunk = TRUE
+  )
+
+```
+
+```{r Medida de i gráfica,  echo=FALSE, fig.width=6.5, fig.height=4}
+
+breaks_i <- base_i$fecha_q[seq(1, nrow(base_i), by = 4)]
+labels_i <- base_i$trimestre[seq(1, nrow(base_i), by = 4)]
+
+ggplot(base_i, aes(x = fecha_q, y = inversion_porcentaje, group = 1)) +
+  geom_line(linewidth = 0.8, color = "steelblue", na.rm = TRUE) +
+  geom_point(size = 1.8, color = "firebrick", na.rm = TRUE) +
+  geom_hline(yintercept = 0, linetype = "dashed") +
+  scale_x_yearqtr(
+    breaks = breaks_i,
+    labels = labels_i
+  ) +
+  labs(
+    title = "Gráfica. Tasa de inversión de FEMSA",
+    subtitle = "Crecimiento porcentual trimestral de los activos fijos",
+    x = "Trimestre",
+    y = "Tasa de inversión (%)",
+    caption = "Fuente: elaboración propia con datos de FEMSA y la BMV."
+  ) +
+  scale_y_continuous(labels = label_number(accuracy = 0.1)) +
+  theme_minimal() +
+  theme(
+    plot.title = element_text(face = "bold"),
+    plot.caption = element_text(hjust = 0, size = 8),
+    axis.text.x = element_text(angle = 90, vjust = 0.5, size = 6),
+    panel.grid.minor = element_blank(),
+    panel.grid.major.x = element_blank(),
+    panel.grid.major.y = element_line(linewidth = 0.4, color = "grey80")
+  )
+
+```
+
+La gráfica muestra que la tasa de inversión de FEMSA, medida como el crecimiento porcentual trimestral de los activos fijos, presenta una volatilidad importante durante la primera parte del periodo. En 2010 se observa una caída muy pronunciada, seguida por una recuperación rápida en los trimestres posteriores. Entre 2011 y 2017, la inversión fluctúa de manera considerable alrededor de cero, con varios episodios de crecimiento positivo, lo que sugiere periodos de expansión del capital fijo, pero también algunos trimestres de contracción o ajuste contable.
+
+A partir de 2018, la serie parece volverse más estable, aunque todavía aparecen movimientos relevantes, como una caída fuerte alrededor de 2018-2019 y repuntes posteriores. También debe considerarse que esta medida es una aproximación contable de la inversión, por lo que puede reflejar no solo nuevas inversiones, sino también depreciación, ventas de activos, adquisiciones o reclasificaciones contables.
+
+\textbf{(d) Estimación de regresión lineal entre $i$ y $q$}
+
+\vspace{0.1cm}
+
+En esta etapa del ejercicio, se estiman los coeficientes de una regresión lineal para evaluar la relación empírica entre la tasa de inversión y la valoración de mercado en FEMSA. Siguiendo el planteamiento teórico, se utiliza la $q$ de Tobin del periodo anterior ($q_{t-1}$) para explicar la tasa de inversión del periodo actual ($i_t$). Esta especificación de rezago se fundamenta en que las decisiones de inversión y la instalación de capital físico no son instantáneas, respondiendo a las señales de mercado con un desfase temporal.
+
+El modelo a estimar es el siguiente:
+
+$$i_{t} = \beta_{0} + \beta_{1} q_{t-1} + \epsilon_{t}$$
+
+Donde:
+
+$i_{t}$: Tasa de inversión en el periodo $t$; 
+$q_{t-1}$: Valor de la $q$ de Tobin en el periodo inmediato anterior;
+y $\beta_{1}$: Coeficiente que mide la sensibilidad de la inversión ante cambios en la valoración de mercado.
+
+A continuación se muestran los resultados encontrados.
+
+```{r Regresión lineal, include=FALSE}
+
+base_reg <- base_i %>%
+  arrange(fecha_q) %>%
+  mutate(
+    q_rezagada = lag(q_tobin)
+  ) %>%
+  drop_na(inversion, q_rezagada)
+
+modelo_q <- lm(inversion ~ q_rezagada, data = base_reg)
+
+summary(modelo_q)
+
+```
+
+```{r Tabla regresión, echo=FALSE, fig.width=6.5, fig.height=4}
+
+tabla_modelo <- tidy(modelo_q)
+
+tabla_modelo %>%
+  mutate(
+    term = case_when(
+      term == "(Intercept)" ~ "Constante",
+      term == "q_rezagada" ~ "q de Tobin rezagada",
+      TRUE ~ term
+    )
+  ) %>%
+  kable(
+    digits = 4,
+    caption = "Tabla. Regresión lineal entre tasa de inversión y q de Tobin rezagada",
+    format = "latex",
+    booktabs = TRUE
+  ) %>%
+  kable_styling(
+    full_width = FALSE,
+    position = "center",
+    latex_options = c("hold_position", "scale_down")
+  ) %>%
+  footnote(
+    general = "Fuente: elaboración propia con datos de FEMSA y la BMV.",
+    general_title = "",
+    footnote_as_chunk = TRUE
+  )
+
+```
+
+```{r Regresión lineal gráfica,  echo=FALSE, fig.width=6.5, fig.height=4}
+
+ggplot(base_reg, aes(x = q_rezagada, y = inversion)) +
+  geom_point(size = 2, color = "firebrick") +
+  geom_smooth(method = "lm", se = TRUE, color = "steelblue") +
+  labs(
+    title = "Gráfica. Relación entre inversión y q de Tobin rezagada",
+    subtitle = "FEMSA, datos trimestrales",
+    x = "q de Tobin rezagada",
+    y = "Tasa de inversión",
+    caption = "Fuente: elaboración propia con datos de FEMSA y la BMV."
+  ) +
+  scale_y_continuous(labels = percent_format(accuracy = 0.1)) +
+  theme_minimal() +
+  theme(
+    plot.title = element_text(face = "bold"),
+    plot.caption = element_text(hjust = 0, size = 8),
+    panel.grid.minor = element_blank(),
+    panel.grid.major.x = element_blank(),
+    panel.grid.major.y = element_line(linewidth = 0.4, color = "grey80")
+  )
+
+```
+
+La regresión muestra una relación positiva entre la \(q\) de Tobin rezagada y la tasa de inversión de FEMSA, pero el efecto es muy pequeño. El coeficiente de la \(q\) rezagada es 0.0031, lo que sugiere que un aumento de una unidad en \(q_{t-1}\) se asocia con un incremento de apenas 0.31 puntos porcentuales en la tasa de inversión.
+
+Sin embargo, esta relación no es estadísticamente significativa, ya que el valor-p es 0.6571, muy superior a los niveles convencionales de significancia. La gráfica confirma esta debilidad: la nube de puntos está muy dispersa y la recta ajustada tiene una pendiente casi plana. Por tanto, aunque el signo es consistente con la teoría de la \(q\) de Tobin, la evidencia no permite afirmar que la \(q\) rezagada explique de manera importante la inversión trimestral de FEMSA.
+
+Dado que el modelo con un solo rezago muestra una relación positiva pero débil y estadísticamente no significativa, resulta pertinente explorar una especificación con más rezagos de la \(q\) de Tobin. 
+
+En la práctica, las decisiones de inversión en activos fijos requieren tiempo de planeación, aprobación e implementación. Por ello, al incluir varios rezagos se busca capturar una posible respuesta diferida de la inversión ante cambios previos en la \(q\). A continuación se muestran los resultados de este ejercicio con rezagos.
+
+```{r regresion-con-rezagos, include=FALSE}
+base_reg_rezagos <- base_i %>%
+  arrange(fecha_q) %>%
+  mutate(
+    q_lag1 = lag(q_tobin, 1),
+    q_lag2 = lag(q_tobin, 2),
+    q_lag3 = lag(q_tobin, 3),
+    q_lag4 = lag(q_tobin, 4)
+  ) %>%
+  drop_na(inversion, q_lag1, q_lag2, q_lag3, q_lag4)
+
+modelo_q_rezagos <- lm(
+  inversion ~ q_lag1 + q_lag2 + q_lag3 + q_lag4,
+  data = base_reg_rezagos
+)
+
+summary(modelo_q_rezagos)
+
+```
+
+```{r tabla-regresion-con-rezagos, echo=FALSE}
+
+tabla_modelo_rezagos <- tidy(modelo_q_rezagos)
+
+tabla_modelo_rezagos %>%
+  mutate(
+    term = case_when(
+      term == "(Intercept)" ~ "Constante",
+      term == "q_lag1" ~ "q rezagada 1 trimestre",
+      term == "q_lag2" ~ "q rezagada 2 trimestres",
+      term == "q_lag3" ~ "q rezagada 3 trimestres",
+      term == "q_lag4" ~ "q rezagada 4 trimestres",
+      TRUE ~ term
+    )
+  ) %>%
+  kable(
+    digits = 4,
+    caption = "Tabla. Regresión lineal entre tasa de inversión y rezagos de la q de Tobin",
+    format = "latex",
+    booktabs = TRUE
+  ) %>%
+  kable_styling(
+    full_width = FALSE,
+    position = "center",
+    latex_options = c("hold_position", "scale_down")
+  ) %>%
+  footnote(
+    general = "Fuente: elaboración propia con datos de FEMSA y la BMV.",
+    general_title = "",
+    footnote_as_chunk = TRUE
+  )
+
+```
+
+El modelo con rezagos presentado en la siguiente tabla sugiere que la inversión de FEMSA podría responder con cierto retraso a la \(q\) de Tobin. Aunque el primer rezago tiene signo negativo, los rezagos de dos, tres y cuatro trimestres son positivos, lo cual es más consistente con la teoría: una mayor valoración de mercado se asociaría con mayor inversión posterior.
+
+Sin embargo, ninguno de los coeficientes es estadísticamente significativo, ya que todos los valores-p son mayores a 0.10. Por tanto, aunque el modelo con rezagos mejora la intuición económica frente al modelo simple, la evidencia sigue siendo débil para afirmar que la \(q\) de Tobin explica de manera robusta la inversión trimestral de FEMSA.
+
+\textbf{(e) Cálculo del coeficiente del costo de ajuste}
+
+\vspace{0.1cm}
+
+Para calcular el costo de ajuste se utilizó el modelo con rezagos de la \(q\) de Tobin. En lugar de usar únicamente \(q_{t-1}\), se incorporaron los cuatro rezagos trimestrales: \(q_{t-1}\), \(q_{t-2}\), \(q_{t-3}\) y \(q_{t-4}\). Posteriormente, se obtuvo el efecto acumulado de la \(q\) sumando los coeficientes estimados de esos rezagos:
+
+\[
+\beta_{\text{acumulado}} = \beta_1 + \beta_2 + \beta_3 + \beta_4
+\]
+
+Con base en la teoría de costos de ajuste, el parámetro \(\phi\) se calcula como el inverso de dicho efecto acumulado:
+
+\[
+\phi = \frac{1}{\beta_{\text{acumulado}}}
+\]
+
+A continuación se presentan las estimaciones obtenidas.
+
+```{r Costo de ajuste, echo=FALSE, fig.width=6.5, fig.height=4}
+
+betas_q <- coef(modelo_q_rezagos)[c("q_lag1", "q_lag2", "q_lag3", "q_lag4")]
+
+beta_total <- sum(betas_q)
+
+phi_rezagos <- 1 / beta_total
+
+tabla_phi_rezagos_larga <- tibble(
+  Concepto = c(
+    "Beta q(t-1)",
+    "Beta q(t-2)",
+    "Beta q(t-3)",
+    "Beta q(t-4)",
+    "Efecto acumulado",
+    "Costo de ajuste phi"
+  ),
+  Valor = c(
+    betas_q["q_lag1"],
+    betas_q["q_lag2"],
+    betas_q["q_lag3"],
+    betas_q["q_lag4"],
+    beta_total,
+    phi_rezagos
+  )
+)
+
+tabla_phi_rezagos_larga %>%
+  kable(
+    digits = 4,
+    caption = "Tabla. Estimación del costo de ajuste con rezagos de q",
+    format = "latex",
+    booktabs = TRUE
+  ) %>%
+  kable_styling(
+    full_width = FALSE,
+    position = "center",
+    latex_options = c("hold_position")
+  ) %>%
+  footnote(
+    general = "Fuente: elaboración propia con datos de FEMSA y la BMV.",
+    general_title = "",
+    footnote_as_chunk = TRUE
+  )
+
+```
+
+La tabla muestra que el efecto acumulado de la \(q\) es positivo, con un valor de 0.0065. Esto implica que, en conjunto, los rezagos de la \(q\) tienen una relación positiva con la inversión, lo cual es consistente con la intuición básica de la teoría: una mayor valoración de mercado debería asociarse con una mayor inversión posterior. A partir de este efecto acumulado se obtiene un costo de ajuste estimado de 154.5952.
+
+Esto significa que la inversión de FEMSA reacciona poco ante cambios en la \(q\) de Tobin. En otras palabras, aunque el mercado valore más a la empresa, la inversión en activos fijos no aumenta de forma fuerte o inmediata. Esto puede deberse a que expandir el capital requiere tiempo, planeación y costos de instalación. Por eso, el resultado sugiere que FEMSA enfrenta costos de ajuste altos, aunque debe interpretarse con cuidado porque los coeficientes de la regresión no fueron estadísticamente significativos.
+
+
+
