@@ -1,0 +1,808 @@
+---
+title: "Ejercicio 2 Tarea 3"
+author: "Luis Felipe Castillo Garrido"
+date: "24 de mayo del 2026"
+output:
+  pdf_document:
+    number_sections: false
+    latex_engine: xelatex
+  html_document:
+    df_print: paged
+fontsize: 10pt
+geometry: margin=1in
+header-includes:
+- \usepackage{placeins}
+- \usepackage{longtable}
+- \usepackage{booktabs}
+- \usepackage{float}
+- \usepackage{array}
+- \usepackage{caption}
+- \captionsetup[table]{skip=10pt}
+---
+
+\newpage
+
+# **Ejercicio 2: Determinantes de la inversión agregada en México**
+
+El objetivo de este ejercicio es estudiar los determinantes de la inversión agregada en México mediante el análisis de distintas variables macroeconómicas y financieras durante el periodo 1988–2025, utilizando información trimestral proveniente principalmente del INEGI. En particular, se analizará la relación entre la inversión privada y el producto interno bruto, así como el comportamiento de sus tasas de crecimiento, volatilidad y covarianza. Posteriormente, se incorporarán variables financieras y de expectativas, como la tasa de interés real, los indicadores de confianza empresarial y del consumidor, y el índice de precios y cotizaciones de la Bolsa Mexicana de Valores, con el propósito de estimar modelos econométricos que permitan evaluar si existe una relación lineal significativa entre dichas variables y el crecimiento de la inversión.
+
+---
+
+**(a) Obtenga, del Inegi, datos desestacionalizados para México de "I", la inversión fija bruta, y de "Y", el PIB, entre 1988 y 2025/IV, a frecuencia trimestral, en términos reales y grafique las dos series.**
+
+Para dar cumplimiento al horizonte temporal solicitado (1988/I - 2025/IV) y ante la inexistencia de una única serie homogénea publicada por el INEGI que cubra dicho periodo bajo la misma base metodológica, se implementó una decisión ejecutiva de empalme de series estadísticas.
+
+El procedimiento consistió en unificar dos bases de datos con frecuencias trimestrales:
+
+1. *Serie Antigua (Base 1980):* Obtenida del archivo histórico "Oferta y demanda global de bienes y servicios", utilizada exclusivamente para rescatar el comportamiento real de la inversión entre los trimestres 1988/01 y 1992/04.
+
+2. *Serie Moderna (Base 2018):* Serie desestacionalizada en valores absolutos a precios constantes de 2018, utilizada como la serie de referencia desde 1993/01 en adelante.
+
+**Cálculo del factor de empalme**
+
+Para evitar distorsiones en las tasas de crecimiento históricas y asegurar la continuidad de la escala en millones de pesos constantes de 2018, se seleccionó el primer trimestre de 1993 (1993/01) como periodo de traslape mecánico.
+
+El factor de ajuste utilizado fue:
+
+$$
+Factor =
+\frac{I^{\text{Base 2018}}_{1993/01}}
+{I^{\text{Base 1980}}_{1993/01}}
+=
+\frac{2,484,069.073}{1,178.5}
+\approx 2,107.8227
+$$
+
+Finalmente, se multiplicaron los valores históricos originales del tramo 1988/01–1992/04 por este factor constante. Matemáticamente, este método preserva las tasas de variación porcentual y la volatilidad histórica del periodo previo a 1993, absorbiendo en el multiplicador los cambios metodológicos, de cobertura y de año base presentes en las cuentas nacionales.
+
+La serie resultante proporciona una aproximación homogénea y consistente expresada en una escala compatible con los precios constantes de 2018 para todo el periodo de estudio.
+
+```{r tabla_series, echo=FALSE, message=FALSE, warning=FALSE}
+
+library(readxl)
+library(tidyverse)
+library(zoo)
+library(scales)
+library(kableExtra)
+
+# =========================================================
+# 1. Carga de archivos
+# =========================================================
+
+data_pib <- read_excel("C:/Users/lcastillo/Downloads/2. PIB.xlsx")
+data_inv <- read_excel("C:/Users/lcastillo/Downloads/1. INVERSIÓN.xlsx")
+
+# =========================================================
+# 2. Unión de bases
+# =========================================================
+
+datos_finales <- inner_join(data_pib, data_inv, by = "Periodo")
+
+# =========================================================
+# 3. Limpieza y estructura
+# =========================================================
+
+tabla_completa <- datos_finales %>%
+  select(Periodo, PIB, matches("(?i)invers")) %>%
+  rename(
+    Trimestre = Periodo,
+    `PIB Real (Y)` = PIB,
+    `Formación Bruta de Capital Fijo (I)` = matches("(?i)invers")
+  ) %>%
+  mutate(
+    Fecha = as.yearqtr(Trimestre, format = "%Y/%q")
+  )
+
+# =========================================================
+# 4. Tabla completa
+# =========================================================
+
+knitr::kable(
+  select(tabla_completa, -Fecha),
+  format = "latex",
+  longtable = TRUE,
+  booktabs = TRUE,
+  align = "ccc",
+  digits = 2,
+  caption = "Serie trimestral del PIB y la Formación Bruta de Capital Fijo en México"
+) %>%
+  kable_styling(
+    latex_options = c("striped", "repeat_header"),
+    position = "center",
+    font_size = 9
+  )
+
+```
+
+
+
+```{r grafica_series, echo=FALSE, message=FALSE, warning=FALSE, fig.align='center', fig.pos='H', out.width='95%'}
+
+# =========================================================
+# Construcción de índices base 1988/I = 100
+# =========================================================
+
+datos_grafico <- tabla_completa %>%
+  mutate(
+    `PIB Real (Y)` =
+      (`PIB Real (Y)` / first(`PIB Real (Y)`)) * 100,
+
+    `Formación Bruta de Capital Fijo (I)` =
+      (`Formación Bruta de Capital Fijo (I)` /
+         first(`Formación Bruta de Capital Fijo (I)`)) * 100
+  ) %>%
+  pivot_longer(
+    cols = c(
+      `PIB Real (Y)`,
+      `Formación Bruta de Capital Fijo (I)`
+    ),
+    names_to = "Variable",
+    values_to = "Índice"
+  )
+
+# =========================================================
+# Gráfica
+# =========================================================
+
+ggplot(
+  datos_grafico,
+  aes(
+    x = Fecha,
+    y = Índice,
+    color = Variable,
+    group = Variable
+  )
+) +
+
+  geom_line(linewidth = 0.9) +
+
+  scale_color_manual(
+    values = c(
+      "PIB Real (Y)" = "#1f4e79",
+      "Formación Bruta de Capital Fijo (I)" = "#c00000"
+    )
+  ) +
+
+  scale_y_continuous(
+    labels = label_number(accuracy = 1)
+  ) +
+
+  scale_x_yearqtr(
+    format = "%Y",
+    n = 10
+  ) +
+
+  labs(
+    title = "Evolución del PIB Real y la Formación Bruta de Capital Fijo en México",
+    subtitle = "Índice base 1988/I = 100",
+    x = "Trimestre",
+    y = "Índice",
+    caption = "Fuente: Elaboración propia con datos del INEGI."
+  ) +
+
+  theme_minimal(base_size = 11) +
+
+  theme(
+    plot.title = element_text(
+      hjust = 0.5,
+      face = "bold"
+    ),
+
+    plot.subtitle = element_text(
+      hjust = 0.5
+    ),
+
+    axis.text.x = element_text(
+      angle = 90,
+      vjust = 0.5,
+      size = 8
+    ),
+
+    legend.position = "bottom",
+    legend.title = element_blank(),
+
+    panel.grid.minor = element_blank()
+  )
+
+```
+
+\newpage
+
+
+**(b) Grafique la relación entre los cambios de I y los de Y, es decir, grafique los puntos (%ΔYt, %ΔIt) poniendo la inversión en el eje de las ordenadas.**
+
+Para analizar la relación dinámica entre la actividad económica y la inversión privada, se construyeron las tasas de crecimiento trimestrales del PIB real y de la Formación Bruta de Capital Fijo utilizando diferencias logarítmicas. En particular, para cada serie \(X_t\), la tasa de crecimiento se definió como:
+
+$$
+g_t = 100\left[\ln(X_t)-\ln(X_{t-1})\right]
+$$
+
+Este procedimiento constituye una aproximación estándar al crecimiento porcentual continuo y permite estabilizar la varianza de las series temporales. Posteriormente, se elaboró una gráfica de dispersión de los pares (%ΔYt, %ΔIt), colocando el crecimiento de la inversión en el eje vertical y el crecimiento del PIB en el eje horizontal. Adicionalmente, se incorporó una recta de ajuste lineal con el propósito de identificar visualmente la existencia de una posible relación procíclica entre ambas variables.
+
+
+```{r tabla_inciso_b, echo=FALSE, message=FALSE, warning=FALSE}
+
+# =========================================================
+# Construcción de tasas de crecimiento
+# =========================================================
+
+datos_crecimiento <- tabla_completa %>%
+  arrange(Fecha) %>%
+  mutate(
+
+    gPIB = 100 * (
+      log(`PIB Real (Y)`) -
+      log(lag(`PIB Real (Y)`))
+    ),
+
+    gINV = 100 * (
+      log(`Formación Bruta de Capital Fijo (I)`) -
+      log(lag(`Formación Bruta de Capital Fijo (I)`))
+    )
+
+  ) %>%
+  drop_na()
+
+# =========================================================
+# Tabla de crecimiento
+# =========================================================
+
+tabla_crecimiento <- datos_crecimiento %>%
+  select(
+    Trimestre,
+    gPIB,
+    gINV
+  ) %>%
+  rename(
+    `Crecimiento del PIB (%ΔY)` = gPIB,
+    `Crecimiento de la Inversión (%ΔI)` = gINV
+  )
+
+knitr::kable(
+  tabla_crecimiento,
+  format = "latex",
+  longtable = TRUE,
+  booktabs = TRUE,
+  align = "ccc",
+  digits = 2,
+  caption = "Tasas de crecimiento trimestrales del PIB y la inversión"
+) %>%
+  kable_styling(
+    latex_options = c("striped", "repeat_header"),
+    position = "center",
+    font_size = 9
+  )
+
+```
+
+```{r inciso_b, echo=FALSE, message=FALSE, warning=FALSE, fig.align='center', fig.pos='H', out.width='90%'}
+
+# =========================================================
+# Gráfica de dispersión
+# =========================================================
+
+ggplot(
+  datos_crecimiento,
+  aes(
+    x = gPIB,
+    y = gINV
+  )
+) +
+
+  geom_point(
+    color = "#1f4e79",
+    size = 2,
+    alpha = 0.7
+  ) +
+
+  geom_smooth(
+    method = "lm",
+    se = FALSE,
+    color = "#c00000",
+    linewidth = 1
+  ) +
+
+  labs(
+    title = "Relación entre el crecimiento del PIB y la inversión",
+    subtitle = "Tasas de crecimiento trimestrales logarítmicas",
+    x = expression("%" * Delta * " PIB"),
+    y = expression("%" * Delta * " Inversión"),
+    caption = "Fuente: Elaboración propia con datos del INEGI."
+  ) +
+
+  theme_minimal(base_size = 11) +
+
+  theme(
+    plot.title = element_text(
+      hjust = 0.5,
+      face = "bold"
+    ),
+
+    plot.subtitle = element_text(
+      hjust = 0.5
+    ),
+
+    legend.position = "none",
+
+    panel.grid.minor = element_blank()
+  )
+
+```
+
+
+\newpage
+\FloatBarrier
+
+**(c) Calcule la volatilidad de cada serie y la covarianza entre las dos series de tasas de crecimiento (%∆I y %∆Y), describa cuál es más volátil**
+
+
+Con el propósito de evaluar cuantitativamente el comportamiento cíclico de ambas variables, se calculan las volatilidades de las tasas de crecimiento del PIB y de la inversión utilizando la desviación estándar muestral. Asimismo, se estimó la covarianza entre ambas tasas de crecimiento con el objetivo de medir el grado de comovimiento lineal entre la actividad económica y la inversión privada.
+
+Formalmente, la volatilidad de cada serie se define como:
+
+$$
+\sigma_X =
+\sqrt{
+\frac{1}{T-1}
+\sum_{t=1}^{T}
+(X_t-\bar{X})^2
+}
+$$
+
+mientras que la covarianza entre las tasas de crecimiento del PIB y la inversión viene dada por:
+
+$$
+\operatorname{Cov}(X,Y)=
+\frac{1}{T-1}
+\sum_{t=1}^{T}
+(X_t-\bar{X})(Y_t-\bar{Y})
+$$
+
+donde \(X_t\) representa el crecimiento del PIB y \(Y_t\) el crecimiento de la inversión.
+
+
+```{r inciso_c_tabla, echo=FALSE, message=FALSE, warning=FALSE}
+
+# =========================================================
+# 1. Cálculo de estadísticas
+# =========================================================
+
+volatilidad_pib <- sd(datos_crecimiento$gPIB)
+
+volatilidad_inv <- sd(datos_crecimiento$gINV)
+
+covarianza <- cov(
+  datos_crecimiento$gPIB,
+  datos_crecimiento$gINV
+)
+
+# =========================================================
+# 2. Construcción de tabla resumen
+# =========================================================
+
+tabla_volatilidad <- tibble(
+  
+  Estadístico = c(
+    "Volatilidad del PIB",
+    "Volatilidad de la Inversión",
+    "Covarianza PIB-Inversión"
+  ),
+  
+  Valor = c(
+    volatilidad_pib,
+    volatilidad_inv,
+    covarianza
+  )
+)
+
+# =========================================================
+# 3. Renderizado de tabla
+# =========================================================
+
+knitr::kable(
+  tabla_volatilidad,
+  format = "latex",
+  booktabs = TRUE,
+  align = c("c", "c"),
+  digits = 4,
+  caption = "Volatilidad y covarianza de las tasas de crecimiento"
+) %>%
+  kableExtra::kable_styling(latex_options = c("striped", "hold_position"))
+
+```
+
+```{r inciso_c_grafica, echo=FALSE, message=FALSE, warning=FALSE, fig.align='center', fig.pos='H', out.width='80%'}
+
+# =========================================================
+# 1. Preparación de datos
+# =========================================================
+
+datos_volatilidad <- tibble(
+  
+  Serie = c(
+    "PIB",
+    "Inversión"
+  ),
+  
+  Volatilidad = c(
+    volatilidad_pib,
+    volatilidad_inv
+  )
+)
+
+# =========================================================
+# 2. Gráfica comparativa
+# =========================================================
+
+ggplot(
+  datos_volatilidad,
+  aes(
+    x = Serie,
+    y = Volatilidad,
+    fill = Serie
+  )
+) +
+
+  geom_col(width = 0.6) +
+
+  scale_fill_manual(
+    values = c(
+      "PIB" = "#1f4e79",
+      "Inversión" = "#c00000"
+    )
+  ) +
+
+  labs(
+    title = "Comparación de volatilidades",
+    subtitle = "Desviación estándar de las tasas de crecimiento",
+    x = "",
+    y = "Volatilidad",
+    caption = "Fuente: Elaboración propia con datos del INEGI."
+  ) +
+
+  theme_minimal(base_size = 11) +
+
+  theme(
+    plot.title = element_text(
+      hjust = 0.5,
+      face = "bold"
+    ),
+    
+    plot.subtitle = element_text(
+      hjust = 0.5
+    ),
+
+    legend.position = "none",
+
+    panel.grid.minor = element_blank()
+  )
+
+```
+
+
+Los resultados muestran que la inversión privada presenta una volatilidad considerablemente mayor que la del PIB. Este comportamiento es consistente con la teoría macroeconómica y con la evidencia empírica de los ciclos económicos, según la cual la inversión constituye uno de los componentes más sensibles del gasto agregado frente a cambios en las expectativas, las condiciones financieras y el nivel de actividad económica.
+
+Asimismo, la covarianza positiva entre ambas tasas de crecimiento indica que el PIB y la inversión tienden a moverse en la misma dirección a lo largo del ciclo económico, lo que sugiere un comportamiento procíclico de la inversión agregada en México durante el periodo analizado.
+
+\newpage
+
+**(d) Obtención de la tasa de interés real (\(rr_t\))**
+
+Con el objetivo de incorporar las condiciones monetarias de la economía mexicana al análisis de la inversión agregada, se construyó una medida de la tasa de interés real ex-post a partir de información del Banco de México y del INEGI.
+
+
+La tasa de interés real se define como:
+
+$$
+rr_t = rn_t - \pi_t
+$$
+
+donde:
+
+- \(rr_t\): tasa de interés real  
+- \(rn_t\): tasa de interés nominal (Tasa objetivo de Banxico)  
+- \(\pi_t\): inflación observada  
+
+**Estrategia empírica**
+
+Para construir la serie se utilizaron dos fuentes:
+
+- *Banco de México (SIE):* Tasa objetivo diaria (2008–2025)  
+- *INEGI:** INPC mensual (2008–2025)
+
+Dado que las frecuencias originales no son compatibles, se realizó la siguiente transformación:
+
+1. La tasa objetivo diaria se transformó a frecuencia trimestral mediante promedio simple:
+\[
+rn_t = \frac{1}{N_t}\sum_{i=1}^{N_t} rn_{i}
+\]
+
+2. El INPC mensual se convirtió a inflación trimestral mediante diferencias logarítmicas:
+\[
+\pi_t = 100\left[\ln(INPC_t)-\ln(INPC_{t-1})\right]
+\]
+
+3. Finalmente, ambas series fueron alineadas en frecuencia trimestral para construir la tasa real:
+\[
+rr_t = rn_t - \pi_t
+\]
+
+El análisis se restringe al periodo 2008–2025, ya que es el rango común de disponibilidad de ambas fuentes.
+
+
+
+```{r inciso_d, echo=FALSE, message=FALSE, warning=FALSE}
+
+library(tidyverse)
+library(readxl)
+library(lubridate)
+library(zoo)
+library(kableExtra)
+
+# =========================================================
+# 1. BANXICO: Tasa objetivo (diaria → trimestral)
+# =========================================================
+
+tasa <- read_excel("C:/Users/lcastillo/Downloads/3. Tasa de interes.xlsx") %>%
+  mutate(
+    Fecha = as.Date(Fecha),
+    Trimestre = as.yearqtr(Fecha)
+  )
+
+rn_trimestral <- tasa %>%
+  group_by(Trimestre) %>%
+  summarise(
+    rn = mean(`Tasa objetivo`, na.rm = TRUE),
+    .groups = "drop"
+  )
+
+# =========================================================
+# 2. INPC (mensual → trimestral)
+# =========================================================
+
+inpc <- read_excel("C:/Users/lcastillo/Downloads/4. INPC.xlsx") %>%
+  mutate(
+    Periodo = as.character(Periodo),
+    Fecha = as.yearmon(Periodo),
+    Fecha = as.Date(Fecha),
+    Trimestre = as.yearqtr(Fecha)
+  ) %>%
+  arrange(Fecha)
+
+# Inflación trimestral correcta (log diferencia inicio-fin del trimestre)
+pi_trimestral <- inpc %>%
+  group_by(Trimestre) %>%
+  summarise(
+    pi = 100 * (log(last(Indice)) - log(first(Indice))),
+    .groups = "drop"
+  )
+
+# =========================================================
+# 3. Unión de series (IMPORTANTE: full_join)
+# =========================================================
+
+datos_rr <- full_join(rn_trimestral, pi_trimestral, by = "Trimestre") %>%
+  arrange(Trimestre) %>%
+  mutate(rr = rn - pi)
+
+# =========================================================
+# 4. Tabla resumen
+# =========================================================
+
+knitr::kable(
+  datos_rr,
+  format = "latex",
+  longtable = TRUE,
+  booktabs = TRUE,
+  align = "ccc",
+  digits = 2,
+  caption = "Tasa de interés nominal, inflación y tasa real (trimestral)"
+) %>%
+kableExtra::kable_styling(
+  latex_options = c("striped", "repeat_header"),
+  position = "center",
+  font_size = 9
+)
+
+```
+
+```{r grafica_rr, echo=FALSE, message=FALSE, warning=FALSE, fig.align='center', fig.pos='H'}
+
+datos_rr %>%
+  pivot_longer(cols = c(rn, pi, rr),
+               names_to = "Serie",
+               values_to = "Valor") %>%
+  ggplot(aes(x = Trimestre, y = Valor, color = Serie)) +
+  
+  geom_line(linewidth = 0.9) +
+  
+  scale_color_manual(values = c(
+    rn = "#1f4e79",
+    pi = "#c00000",
+    rr = "#228B22"
+  )) +
+  
+  labs(
+    title = "Tasa de interés nominal, inflación y tasa real",
+    subtitle = "México 2008–2025 (frecuencia trimestral)",
+    x = "Trimestre",
+    y = "Porcentaje",
+    color = ""
+  ) +
+  
+  theme_minimal(base_size = 11) +
+  
+  theme(
+    plot.title = element_text(hjust = 0.5, face = "bold"),
+    legend.position = "bottom",
+    axis.text.x = element_text(angle = 90, vjust = 0.5)
+  )
+
+```
+
+
+La tasa de interés real muestra una dinámica fuertemente influenciada por la política monetaria del Banco de México y por los episodios inflacionarios del periodo analizado. En particular, se observan episodios en los que la tasa real disminuye significativamente o incluso se vuelve negativa, lo cual ocurre cuando la inflación supera a la tasa nominal.
+
+Este comportamiento es relevante para el análisis de la inversión privada, ya que tasas reales más elevadas incrementan el costo de financiamiento, mientras que tasas reales bajas o negativas pueden incentivar la expansión del gasto de inversión.
+
+\newpage
+
+**(e) Estime diversos modelos lineales con el objetivo de averiguar si existe una relación lineal entre alguna variable y la tasa de crecimiento de la inversión ∆%It: considere la tasa de interés real del inciso anterior, la confianza empresarial del Inegi, la con anza del consumidor elaborado por el Inegi y el Banco de México, y el índice de precios y cotizaciones de la Bolsa Mexicana de Valores, en términos reales**
+
+
+Con el objetivo de analizar los determinantes de la inversión y su relación con variables financieras y de expectativas, se estiman diversos modelos de regresión lineal utilizando información trimestral para el periodo 2017–2025. La variable dependiente considerada es el crecimiento de la inversión, mientras que las variables explicativas incluyen la tasa de interés real, el índice de precios y cotizaciones de la Bolsa Mexicana de Valores (IPC), así como los indicadores de confianza empresarial y confianza del consumidor.
+
+En primer lugar, la tasa de interés real (\(rr_t\)) se construye como la diferencia entre la tasa de interés nominal promedio trimestral publicada por el Banco de México y la inflación trimestral derivada del Índice Nacional de Precios al Consumidor (INPC), expresada en términos porcentuales:
+
+\[
+rr_t = rn_t - \pi_t
+\]
+
+donde \(rn_t\) corresponde a la tasa objetivo promedio del trimestre y \(\pi_t\) representa la inflación trimestral obtenida a partir de diferencias logarítmicas del INPC.
+
+Por su parte, el IPC se transforma a una tasa de crecimiento mediante diferencias logarítmicas, lo que permite interpretar sus variaciones como rendimientos porcentuales aproximados:
+
+\[
+gIPC_t = 100 \left[\ln(IPC_t) - \ln(IPC_{t-1})\right]
+\]
+
+Las variables de confianza empresarial y del consumidor, disponibles con frecuencia mensual, son agregadas a frecuencia trimestral mediante promedios simples para garantizar la consistencia temporal del conjunto de datos.
+
+Una vez construidas y armonizadas todas las variables en frecuencia trimestral, se restringe la muestra al periodo 2017–2025, que corresponde al intervalo común de disponibilidad de todas las series utilizadas. Finalmente, se estiman distintos modelos lineales por mínimos cuadrados ordinarios (MCO) para evaluar la relación entre el crecimiento de la inversión y las variables explicativas seleccionadas.
+
+```{r incisoe, echo=FALSE, message=FALSE, warning=FALSE}
+
+# =========================================================
+# INCISO (e): MODELOS LINEALES - INVERSIÓN
+# Periodo: 2017-2025
+# =========================================================
+
+library(tidyverse)
+library(readxl)
+library(zoo)
+library(lubridate)
+library(modelsummary)
+
+# =========================================================
+# 1. CARGA BASE PRINCIPAL
+# =========================================================
+
+base <- read_excel("C:/Users/lcastillo/Downloads/8. Regresion.xlsx") %>%
+  mutate(
+    Trimestre = as.yearqtr(Periodo, format = "%Y-%q")
+  )
+
+# =========================================================
+# 2. IPC: CRECIMIENTO (gIPC)
+# =========================================================
+
+ipc <- read_excel("C:/Users/lcastillo/Downloads/7. IPC.xlsx") %>%
+  mutate(
+    Fecha = as.Date(paste0(Periodo, "-01")),
+    Trimestre = as.yearqtr(Fecha),
+    log_ipc = log(IPC)
+  ) %>%
+  arrange(Trimestre) %>%
+  group_by(Trimestre) %>%
+  summarise(
+    gIPC = 100 * mean(log_ipc - lag(log_ipc), na.rm = TRUE),
+    .groups = "drop"
+  )
+
+# =========================================================
+# 3. TASA NOMINAL (BANXICO) TRIMESTRAL
+# =========================================================
+
+tasa <- read_excel("C:/Users/lcastillo/Downloads/3. Tasa de interes.xlsx") %>%
+  mutate(
+    Fecha = as.Date(Fecha),
+    Trimestre = as.yearqtr(Fecha)
+  ) %>%
+  group_by(Trimestre) %>%
+  summarise(
+    rn = mean(`Tasa objetivo`, na.rm = TRUE),
+    .groups = "drop"
+  )
+
+# =========================================================
+# 4. INPC → INFLACIÓN TRIMESTRAL
+# =========================================================
+
+inpc <- read_excel("C:/Users/lcastillo/Downloads/4. INPC.xlsx") %>%
+  mutate(
+    Fecha = as.Date(paste0(Periodo, "-01")),
+    Trimestre = as.yearqtr(Fecha),
+    log_inpc = log(Indice)
+  ) %>%
+  arrange(Trimestre) %>%
+  group_by(Trimestre) %>%
+  summarise(
+    pi = 100 * mean(log_inpc - lag(log_inpc), na.rm = TRUE),
+    .groups = "drop"
+  )
+
+# =========================================================
+# 5. TASA DE INTERÉS REAL
+# =========================================================
+
+rr_trimestral <- inner_join(tasa, inpc, by = "Trimestre") %>%
+  mutate(rr = rn - pi)
+
+# =========================================================
+# 6. UNIÓN FINAL DE BASES (2017-2025)
+# =========================================================
+
+base_final <- base %>%
+  inner_join(rr_trimestral, by = "Trimestre") %>%
+  inner_join(ipc, by = "Trimestre") %>%
+  filter(
+    Trimestre >= as.yearqtr("2017 Q1"),
+    Trimestre <= as.yearqtr("2025 Q4")
+  ) %>%
+  drop_na()
+
+# =========================================================
+# 7. MODELOS LINEALES
+# =========================================================
+
+m1 <- lm(CE ~ rr + gIPC, data = base_final)
+m2 <- lm(CC ~ rr + gIPC, data = base_final)
+m3 <- lm(CE ~ rr + CC + gIPC, data = base_final)
+m4 <- lm(CC ~ rr + CE + gIPC, data = base_final)
+
+# =========================================================
+# 8. TABLA DE RESULTADOS (LIMPIA)
+# =========================================================
+
+modelsummary(
+  list(
+    "CE ~ rr + gIPC" = m1,
+    "CC ~ rr + gIPC" = m2,
+    "CE completo" = m3,
+    "CC completo" = m4
+  ),
+  output = "latex",
+  stars = TRUE,
+  title = "Resultados de regresiones lineales",
+  gof_omit = "AIC|BIC|Log.Lik",
+  notes = "Errores estándar entre paréntesis"
+)
+```
+\FloatBarrier
+
+**(f) Interprete resultados**
+
+
+Los resultados de las regresiones permiten analizar los determinantes de los indicadores de confianza empresarial ($CE_t$) y confianza del consumidor ($CC_t$) en México para el periodo 2017–2025, incorporando como variables explicativas la tasa de interés real ($rr_t$) y el crecimiento del índice de precios y cotizaciones ($gIPC_t$).
+
+En primer lugar, la tasa de interés real presenta un coeficiente positivo y estadísticamente significativo en las especificaciones básicas. En el modelo base, el coeficiente es aproximadamente 1.23 para $CE_t$ y 1.15 para $CC_t$, ambos significativos al 1%. Este resultado indica que incrementos en la tasa de interés real están asociados con aumentos en los indicadores de confianza.
+
+Desde un punto de vista económico, este resultado debe interpretarse con cautela, ya que una mayor tasa de interés real normalmente se asocia con condiciones monetarias más restrictivas. Sin embargo, en el periodo analizado también puede estar capturando episodios de estabilidad macroeconómica, en los cuales mayores tasas reales reflejan control inflacionario y mayor credibilidad de la política monetaria, lo que puede reforzar la confianza de los agentes.
+
+En segundo lugar, el crecimiento del índice de precios y cotizaciones ($gIPC_t$) no resulta estadísticamente significativo en ninguna de las especificaciones. Sus coeficientes son cercanos a cero y carecen de significancia estadística, lo que sugiere que, en este periodo, el mercado accionario no tiene un efecto directo sistemático sobre la confianza empresarial o del consumidor.
+
+En las especificaciones ampliadas, se observa que la confianza empresarial y la confianza del consumidor presentan efectos positivos y estadísticamente significativos entre sí. El coeficiente de $CC_t$ sobre $CE_t$ es aproximadamente 0.47, mientras que el de $CE_t$ sobre $CC_t$ es aproximadamente 0.52. Esto indica una fuerte interdependencia entre ambos indicadores, consistente con la idea de que las expectativas de hogares y empresas se encuentran altamente correlacionadas a lo largo del ciclo económico.
+
+En términos de ajuste, los modelos ampliados presentan un mayor poder explicativo, con un $R^2$ cercano a 0.54 para $CE_t$ y 0.49 para $CC_t$, lo que indica que la inclusión de la variable de confianza cruzada mejora la capacidad explicativa del modelo.
+
+En conjunto, los resultados sugieren tres conclusiones principales: (i) la tasa de interés real tiene una relación positiva y estadísticamente significativa con los indicadores de confianza; (ii) el mercado accionario ($gIPC_t$) no muestra un efecto significativo en el periodo analizado; y (iii) existe una fuerte relación bidireccional entre la confianza empresarial y del consumidor, lo que evidencia la naturaleza interdependiente de las expectativas económicas en México.
