@@ -1,0 +1,61 @@
+---
+title: "Ejercicio 5"
+author: "Martha Constanza Grullón Guerrero"
+date: "25 de mayo del 2026"
+output:
+  pdf_document:
+    toc: false
+  html_document:
+    toc: false
+header-includes:
+  - \pagenumbering{gobble}
+  - \usepackage{caption}
+  - \captionsetup[table]{labelformat=empty}
+---
+
+\newpage
+
+```{r setup, include=FALSE}
+
+knitr::opts_chunk$set(
+  echo = TRUE,
+  warning = FALSE,
+  message = FALSE,
+  fig.width = 8,
+  fig.height = 5
+)
+
+```
+
+``` {r paqueterías, include=FALSE}
+# Cargamos librerías
+if (!require("pacman")) install.packages("pacman")
+
+pacman::p_load(
+  ggplot2,
+  dplyr,
+  tidyr,
+  broom,
+  knitr,
+  kableExtra,
+  zoo,
+  readr,
+  stringr,
+  seasonal,
+  x13binary,
+  scales,
+  lubridate
+)
+```
+
+# Ejercicio 5:  Mejoras al archivo Diccionario de Economía {-}
+
+Para este ejercicio se utilizó GitHub para proponer mejoras al archivo `Diccionario_De_Economia (1).tex`.
+
+Primero se creó una rama adicional a partir de `main`, llamada `diccionario_equipo2`. En dicha rama se modificó el archivo LaTeX del diccionario, realizando correcciones ortográficas, mejoras de redacción, homologación de formato y eliminación de entradas vacías.
+
+Además se agregaron especificaciónes a ciertas definiciones para mejorar la explicación de los conceptos y la fluidez de las definiciones. También se tradujeron ciertas expresiones en inglés al español, con la idea de transmitir el pensamiento y desarrollo de estos conceptos en más de un idioma. 
+
+Posteriormente, se realizó un commit con los cambios y se abrió un Pull Request para solicitar que las modificaciones fueran incorporadas a la rama principal del repositorio.
+
+El nombre del Pull request es "Correciones y Mejora a Diccionario_De_Economia (1).tex"
