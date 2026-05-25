@@ -1,0 +1,1391 @@
+---
+title: "Ejercicio 1"
+author: "Martha Constanza Grullón Guerrero"
+date: "25 de mayo del 2026"
+output:
+  pdf_document:
+    toc: false
+  html_document:
+    toc: false
+header-includes:
+  - \pagenumbering{gobble}
+  - \usepackage{caption}
+  - \captionsetup[table]{labelformat=empty}
+---
+
+\newpage
+
+```{r setup, include=FALSE}
+
+knitr::opts_chunk$set(
+  echo = TRUE,
+  warning = FALSE,
+  message = FALSE,
+  fig.width = 8,
+  fig.height = 5
+)
+
+```
+
+``` {r paqueterías, include=FALSE}
+# Cargamos librerías
+if (!require("pacman")) install.packages("pacman")
+
+pacman::p_load(
+  ggplot2,
+  dplyr,
+  tidyr,
+  broom,
+  knitr,
+  kableExtra,
+  zoo,
+  readr,
+  stringr,
+  seasonal,
+  x13binary,
+  scales,
+  lubridate
+)
+```
+
+# Ejercicio 1: Ejercicios teóricos {-}
+
+# Ejercicio 9.2
+
+Una empresa compra una unidad de capital a precio \(P_K\).  
+Bajo depreciación lineal, la empresa puede deducir fiscalmente una fracción constante del precio de compra durante \(T\) periodos. Por tanto, en cada periodo \(s=1,2,\dots,T\), la deducción es:
+
+$$
+\frac{P_K}{T}
+$$
+
+Si la tasa de impuesto corporativo es \(\tau\), el ahorro fiscal en cada periodo es:
+
+$$
+\tau \frac{P_K}{T}
+$$
+
+Como estos ahorros fiscales ocurren en el futuro, deben descontarse a la tasa nominal \(i\). Por tanto, el valor presente de los ahorros fiscales es:
+
+$$
+VP =
+\sum_{s=1}^{T}
+\frac{\tau \frac{P_K}{T}}{(1+i)^s}
+$$
+
+Sacando constantes:
+
+$$
+VP =
+\frac{\tau P_K}{T}
+\sum_{s=1}^{T}
+\frac{1}{(1+i)^s}
+$$
+
+La suma geométrica es:
+
+$$
+\sum_{s=1}^{T}
+\frac{1}{(1+i)^s}
+=
+\frac{1-(1+i)^{-T}}{i}
+$$
+
+Por tanto:
+
+$$
+VP =
+\tau P_K
+\left[
+\frac{1-(1+i)^{-T}}{iT}
+\right]
+$$
+
+El precio después de impuestos del capital es el precio de compra menos el valor presente del ahorro fiscal:
+
+$$
+P_K^{\text{after-tax}}
+=
+P_K
+-
+\tau P_K
+\left[
+\frac{1-(1+i)^{-T}}{iT}
+\right]
+$$
+
+Factorizando \(P_K\):
+
+$$
+P_K^{\text{after-tax}}
+=
+P_K
+\left\{
+1-
+\tau
+\left[
+\frac{1-(1+i)^{-T}}{iT}
+\right]
+\right\}
+$$
+
+Se define:
+
+$$
+f=
+\frac{1}{T}
+\sum_{s=1}^{T}
+\frac{1}{(1+i)^s}
+$$
+
+o, equivalentemente:
+
+$$
+f=
+\frac{1-(1+i)^{-T}}{iT}
+$$
+
+Entonces el precio después de impuestos puede escribirse como:
+
+$$
+P_K^{\text{after-tax}}
+=
+(1-f\tau)P_K
+$$
+
+Esta expresión es análoga a la forma general del costo de uso del capital cuando existe un beneficio fiscal sobre la inversión:
+
+$$
+r_K(t)
+=
+\left[
+r(t)+\delta-\frac{\dot p_K(t)}{p_K(t)}
+\right]
+(1-f\tau)p_K(t)
+$$
+
+Se sabe que:
+
+$$
+i=r+\pi
+$$
+
+y que aumenta la inflación \(\pi\), manteniendo constante la tasa real \(r\). Entonces:
+
+$$
+\pi \uparrow
+\Rightarrow i \uparrow
+$$
+
+Como \(f\) depende negativamente de \(i\),
+
+$$
+f=
+\frac{1}{T}
+\sum_{s=1}^{T}
+\frac{1}{(1+i)^s}
+$$
+
+un aumento en \(i\) reduce cada término de la suma:
+
+$$
+\frac{1}{(1+i)^s}\downarrow
+$$
+
+Por tanto:
+
+$$
+f\downarrow
+$$
+
+Como el precio después de impuestos es:
+
+$$
+P_K^{\text{after-tax}}
+=
+(1-f\tau)P_K
+$$
+
+si \(f\) disminuye, entonces \(1-f\tau\) aumenta. Por tanto:
+
+$$
+P_K^{\text{after-tax}}\uparrow
+$$
+
+En consecuencia, una mayor inflación reduce el valor presente de las deducciones fiscales por depreciación. La inflación hace que el ingreso futuro ahorrado tenga menos poner adquisitivo. Esto eleva el precio efectivo del capital después de impuestos y, por tanto, aumenta el costo de uso del capital.
+
+
+$$
+\pi\uparrow
+\Rightarrow
+i\uparrow
+\Rightarrow
+f\downarrow
+\Rightarrow
+(1-f\tau)P_K\uparrow
+\Rightarrow
+r_K\uparrow
+$$
+
+Por tanto, el stock deseado de capital disminuye:
+
+$$
+r_K\uparrow
+\Rightarrow
+K^d\downarrow
+$$
+
+
+# Ejercicio 9.3
+
+En el caso de vivienda propia en Estados Unidos, una característica importante del sistema fiscal es que los pagos nominales de intereses hipotecarios son deducibles de impuestos. Por lo tanto, la tasa real después de impuestos relevante para la vivienda es:
+
+$$
+r-\tau i
+$$
+
+donde:
+
+$$
+r = \text{tasa de interés real antes de impuestos}
+$$
+
+$$
+i = \text{tasa de interés nominal}
+$$
+
+$$
+\tau = \text{tasa marginal de impuesto}
+$$
+
+Además,
+
+$$
+i=r+\pi
+$$
+
+donde \(\pi\) es la inflación.
+
+El costo de oportunidad real de tener vivienda es lo que se deja de ganar por mantener la riqueza invertida en la vivienda en lugar de invertirla en un activo seguro. Si la vivienda vale \(p_K\), ese costo de oportunidad real es:
+
+$$
+r p_K
+$$
+
+Por otro lado, el costo financiero corresponde a los intereses pagados si la vivienda se financia con deuda hipotecaria. Si la deuda es aproximadamente \(p_K\) y la tasa nominal es \(i\), los intereses nominales son:
+
+$$
+i p_K
+$$
+
+Como esos intereses nominales son deducibles, el ahorro fiscal es:
+
+$$
+\tau i p_K
+$$
+
+Entonces el costo financiero real después de impuestos puede escribirse como:
+
+$$
+r p_K-\tau i p_K
+$$
+
+Factorizando:
+
+$$
+(r-\tau i)p_K
+$$
+
+Por eso la tasa real relevante después de impuestos es:
+
+$$
+r-\tau i
+$$
+
+Antes, la tasa de interés representaba el costo de oportunidad de usar capital en lugar de venderlo y dirigir el dinero en un activos seguro. Esto se puede interpretar como el pago de intereses por usar el ingreso en inversión. Sin embargo, en este caso literalmente se pagan intereses al pedir prestado para la compra de viviendas y pagándo la deuda después. Sin embargo, en este caso se subsidia este costo monetario. Se puede reemplazar directamente la expresión de la tasa real relevante después de impuestos en la ecuación de los costos de uso. 
+
+La fórmula del costo de uso del capital en el modelo de inversión base es:
+
+$$
+r_K=
+\left[
+r+\delta-\frac{\dot p_K}{p_K}
+\right]p_K
+$$
+
+Sin embargo, para la vivienda propia, la tasa real relevante después de impuestos es:
+
+$$
+r-\tau i
+$$
+
+Por tanto,
+
+$$
+r_K=
+\left[
+r-\tau i+\delta-\frac{\dot p_K}{p_K}
+\right]p_K
+$$
+
+$$
+r_K=
+\left[
+r-\tau(r+\pi)+\delta-\frac{\dot p_K}{p_K}
+\right]p_K
+$$
+
+Distribuyendo:
+
+$$
+r_K=
+\left[
+r-\tau r-\tau \pi+\delta-\frac{\dot p_K}{p_K}
+\right]p_K
+$$
+
+Por tanto:
+
+$$
+r_K=
+\left[
+(1-\tau)r-\tau \pi+\delta-\frac{\dot p_K}{p_K}
+\right]p_K
+$$
+
+entonces cuando se toma en cuenta un aumento de la inflación:
+
+$$
+\pi\uparrow
+\Rightarrow
+i\uparrow
+$$
+
+Como los intereses nominales son deducibles, el beneficio fiscal aumenta:
+
+$$
+\tau i \uparrow
+$$
+
+Por tanto, la tasa real después de impuestos cae:
+
+$$
+r-\tau i \downarrow
+$$
+
+Si \(r\), \(\tau\), \(\delta\), \(p_K\) y \(\dot p_K/p_K\) se mantienen constantes, entonces:
+
+$$
+\frac{\partial r_K}{\partial \pi}
+=
+-\tau p_K
+$$
+
+Como \(\tau>0\) y \(p_K>0\), se tiene:
+
+$$
+\frac{\partial r_K}{\partial \pi}<0
+$$
+
+Por tanto:
+
+$$
+\pi\uparrow
+\Rightarrow
+r_K\downarrow
+$$
+
+La inflación importa porque, aunque la tasa real \(r\) no cambie, una mayor inflación eleva la tasa nominal \(i\). Como la deducción fiscal se calcula sobre intereses nominales, el beneficio fiscal aumenta. Por tanto, el costo neto después de impuestos disminuye.
+
+$$
+\pi\uparrow
+\Rightarrow
+i\uparrow
+\Rightarrow
+\tau i\uparrow
+\Rightarrow
+r-\tau i\downarrow
+\Rightarrow
+r_K\downarrow
+$$
+
+Finalmente, el stock deseado de vivienda se determina comparando el beneficio marginal de una unidad adicional de vivienda con su costo de uso. En términos generales:
+
+$$
+MPK=r_K
+$$
+
+Si el costo de uso del capital residencial cae, resulta más atractivo mantener vivienda. Por tanto, el stock deseado de capital residencial aumenta:
+
+$$
+r_K\downarrow
+\Rightarrow
+K^d\uparrow
+$$
+
+En conclusión, un aumento de la inflación, manteniendo constante la tasa real \(r\), reduce el costo de uso de la vivienda porque aumenta el valor de la deducción fiscal de intereses nominales. Como consecuencia, aumenta el stock deseado de vivienda:
+
+$$
+\boxed{
+\pi\uparrow
+\Rightarrow
+i\uparrow
+\Rightarrow
+r-\tau i\downarrow
+\Rightarrow
+r_K\downarrow
+\Rightarrow
+K^d\uparrow
+}
+$$
+
+# Ejercicio 9.7
+
+A partir del modelo de la teoría q, se obtiene dos condiciones de primer orden que determinan las decisiones optimas de una firma, a partir de su problema de maximización de beneficios. Cuando estas se cumplen, el valor del capital no está cambiando y no se está invirtiendo ni des-invirtiendo. La condición de primer orden con respecto a la inversión puede escribirse como:
+
+\[
+q=1+C'(I_t).
+\]
+
+Por tanto, cuando no hay inversión neta, \(I_t=0\) y \(C'(0)=0\). Entonces el locus de \(\dot K=0\) es:
+
+\[
+\dot K=0
+\quad \Longleftrightarrow \quad
+q=1.
+\]
+
+La ecuación de movimiento de \(q\) es a partir de la condición de primer orden con respecto al nivdel de capital resulta en:
+
+\[
+\dot q=rq-\pi'(K_t).
+\]
+
+Por tanto, en el locus de \(\dot q=0\):
+
+\[
+rq=\pi'(K_t),
+\]
+
+
+# Inciso (a)
+
+## Una guerra destruye la mitad del acervo de capital
+
+Una caída del acervo de capital hace que sea más productivo el capital restante. y que suba su valor.
+
+En el momento del choque,la economía salta repentinamente a un punto con menos capital y mayor valor de casa unidad,\(q\). En este caso, \(K\) sí cae de golpe porque el choque destruye capital físicamente. En este nuevo punto, la economía se encuentra en el mismo camino silla de la economía, por lo que se mantiene en una trayectoria convergente al equilibrio inicial.
+
+Los loci no cambian, porque no cambia el precio del capital, la tasa de interés, la rentabilidad, ni los costos de ajuste.
+
+La escasez de capital y su mayor valor hacen que aumente la inversión. La economía se mueve sobre la trayectoria convergente, acumulando más capital hasta llegar al nivel anterior. Conforme se recupera el acervo de capital, su valor \(q\) cae hasta llegar a su nivel original.
+
+En el diagrama de fase, se nota cómo la economía pasa de estar en equilibrio al punto B sobre el camino silla, y luego se mueve progresivamente de vuelta al punto A. 
+
+```{r diagrama-fase-camino-silla-completo, echo=FALSE, message=FALSE, warning=FALSE, fig.width=7, fig.height=5}
+library(ggplot2)
+library(grid)
+
+# ------------------------------------------------------------
+# Parámetros del diagrama
+# ------------------------------------------------------------
+
+K_min <- 0
+K_max <- 10
+
+q_min <- 0.4
+q_max <- 1.8
+
+# Locus q punto = 0: q = a - bK
+a <- 1.65
+b <- 0.08
+
+# Punto A: intersección de los locus
+K_A <- (a - 1) / b
+q_A <- 1
+
+# Punto B: a la izquierda de A, sobre el camino silla
+K_B <- 4.2
+q_B <- 1.18
+
+# ------------------------------------------------------------
+# Datos de los locus
+# ------------------------------------------------------------
+
+datos <- data.frame(
+  K = seq(K_min, K_max, length.out = 300)
+)
+
+datos$qdot0 <- a - b * datos$K
+
+# ------------------------------------------------------------
+# Camino silla completo
+# Recta que pasa por B y A y sigue hasta el final de los ejes
+# ------------------------------------------------------------
+
+pend_silla <- (q_A - q_B) / (K_A - K_B)
+
+camino_silla <- data.frame(
+  K = seq(K_min, K_max, length.out = 300)
+)
+
+camino_silla$q <- q_A + pend_silla * (camino_silla$K - K_A)
+
+# ------------------------------------------------------------
+# Segmentos pequeños para flechas entre B y A
+# ------------------------------------------------------------
+
+flecha_1 <- data.frame(
+  x = K_B + 0.4,
+  y = q_A + pend_silla * (K_B + 0.4 - K_A),
+  xend = K_B + 1.3,
+  yend = q_A + pend_silla * (K_B + 1.3 - K_A)
+)
+
+flecha_2 <- data.frame(
+  x = K_B + 1.7,
+  y = q_A + pend_silla * (K_B + 1.7 - K_A),
+  xend = K_B + 2.6,
+  yend = q_A + pend_silla * (K_B + 2.6 - K_A)
+)
+
+# ------------------------------------------------------------
+# Diagrama
+# ------------------------------------------------------------
+
+ggplot(datos, aes(x = K)) +
+  
+  # Locus K punto = 0
+  geom_hline(
+    yintercept = 1,
+    color = "#1f77b4",
+    linewidth = 1.2
+  ) +
+  
+  # Locus q punto = 0
+  geom_line(
+    aes(y = qdot0),
+    color = "#d62728",
+    linewidth = 1.2
+  ) +
+  
+  # Camino silla completo
+  geom_line(
+    data = camino_silla,
+    aes(x = K, y = q),
+    color = "#2ca02c",
+    linewidth = 1.2,
+    linetype = "dashed"
+  ) +
+  
+  # Flecha 1 sobre el camino silla, de B hacia A
+  geom_segment(
+    data = flecha_1,
+    aes(x = x, y = y, xend = xend, yend = yend),
+    color = "black",
+    linewidth = 1,
+    arrow = arrow(length = unit(0.22, "cm"))
+  ) +
+  
+  # Flecha 2 sobre el camino silla, de B hacia A
+  geom_segment(
+    data = flecha_2,
+    aes(x = x, y = y, xend = xend, yend = yend),
+    color = "black",
+    linewidth = 1,
+    arrow = arrow(length = unit(0.22, "cm"))
+  ) +
+  
+  # Punto A
+  geom_point(
+    aes(x = K_A, y = q_A),
+    size = 3.5,
+    color = "black"
+  ) +
+  
+  # Punto B
+  geom_point(
+    aes(x = K_B, y = q_B),
+    size = 3.5,
+    color = "black"
+  ) +
+  
+  # Etiquetas A y B
+  annotate(
+    "text",
+    x = K_A + 0.25,
+    y = q_A - 0.07,
+    label = "A",
+    size = 5,
+    fontface = "bold"
+  ) +
+  
+  annotate(
+    "text",
+    x = K_B - 0.25,
+    y = q_B + 0.07,
+    label = "B",
+    size = 5,
+    fontface = "bold"
+  ) +
+  
+  # Etiquetas de los locus
+  annotate(
+    "text",
+    x = 1.4,
+    y = 1.05,
+    label = expression(dot(K) == 0),
+    color = "#1f77b4",
+    size = 5
+  ) +
+  
+  annotate(
+    "text",
+    x = 2.1,
+    y = a - b * 2.1 + 0.08,
+    label = expression(dot(q) == 0),
+    color = "#d62728",
+    size = 5
+  ) +
+  
+  # Etiqueta del camino silla
+  annotate(
+    "text",
+    x = 5.6,
+    y = 1.10,
+    label = "Camino silla",
+    color = "#2ca02c",
+    size = 4.5
+  ) +
+  
+  labs(
+    title = "Diagrama de fase del modelo q",
+    subtitle = "Movimiento sobre el camino silla desde B hacia A",
+    x = "Capital, K",
+    y = "q de Tobin"
+  ) +
+  
+  coord_cartesian(
+    xlim = c(K_min, K_max),
+    ylim = c(q_min, q_max)
+  ) +
+  
+  theme_minimal(base_size = 13) +
+  theme(
+    plot.title = element_text(face = "bold", hjust = 0.5, size = 15),
+    plot.subtitle = element_text(hjust = 0.5, size = 12),
+    axis.title = element_text(face = "bold"),
+    panel.grid.minor = element_blank(),
+    panel.grid.major = element_line(linewidth = 0.3),
+    legend.position = "none"
+  )
+
+```
+
+
+# Inciso (b)
+
+## El gobierno grava los retornos de poseer empresas a tasa \(\tau\)
+
+Con la imposición de impuestos a los beneficios de la firma, los beneficios pasan de ser:
+
+\[
+\pi(K)
+\]
+
+a:
+
+\[
+(1-\tau)\pi(K).
+\]
+
+Por tanto, el beneficio marginal del capital pasa de ser:
+
+\[
+\pi'(K_t)
+\]
+
+a:
+
+\[
+(1-\tau)\pi'(K_t).
+\]
+
+Entonces el locus de \(\dot q=0\) se convierte en:
+
+\[
+(1-\tau)\pi'(K_t)=rq.
+\]
+
+Esto significa que la rentabilidad de la empresa es ahora más baja. Por ello, el locus \(\dot q=0\) se desplaza hacia abajo. Para cada nivel de capital, ahora cada unidad es menos valiosa.
+
+El locus \(\dot K=0\) no cambia, porque la condición de inversión sigue siendo:
+
+\[
+q=1.
+\]
+
+En el momento del cambio, el valor marginal del capital, q, salta hacia abajo sin mover el nivel de capital, pues es costoso ajustarlo. 
+
+\[
+q\downarrow.
+\]
+
+La economía se posiciona en el camino silla formado por el nuevo locus de \(\dot q=0\) y el locus fijo de \(\dot K=0\). Como \(q<1\), hay desinversión.
+
+\[
+q<1
+\quad \Rightarrow \quad
+\dot K<0.
+\]
+
+El resultado es una caída del nivel de capital. El valor del capital se recupera conforme baja su acervo, porque el capital se vuelve más escaso y \(\pi'(K)\) aumenta.
+
+En el nuevo equilibrio hay menos capital y el valor de \(q\) es el mismo que inicialmente:
+
+En el diagrama de fase se observa cómo la economía salta del punto A en equilibrio al punto B, con el mismo nivel de capital y una q más baja. Este punto se encuentra sobre el camino silla de la economía y se desplaza sobre este al nuevo equilibrio en el punto C, aumentando el valor q y disminuyendo el nivel de capital K.
+
+
+```{r diagrama-fase-desplazamiento-abajo, echo=FALSE, message=FALSE, warning=FALSE, fig.width=7, fig.height=5}
+library(ggplot2)
+library(grid)
+
+# ------------------------------------------------------------
+# Parámetros del diagrama
+# ------------------------------------------------------------
+
+K_min <- 0
+K_max <- 10
+
+q_min <- 0.4
+q_max <- 1.8
+
+# Locus q punto = 0 inicial: q = a - bK
+a <- 1.65
+b <- 0.08
+
+# Desplazamiento hacia abajo del nuevo locus rojo
+desplazamiento <- 0.22
+
+# Locus nuevo: paralelo al primero, pero más abajo
+a_nuevo <- a - desplazamiento
+
+# Punto A: intersección del locus rojo inicial con q = 1
+K_A <- (a - 1) / b
+q_A <- 1
+
+# Punto C: intersección del nuevo locus rojo con q = 1
+K_C <- (a_nuevo - 1) / b
+q_C <- 1
+
+# ------------------------------------------------------------
+# Camino silla inicial
+# Pasa por A y es paralelo al nuevo camino silla
+# ------------------------------------------------------------
+
+pend_silla <- -0.055
+
+camino_silla_0 <- data.frame(
+  K = seq(K_min, K_max, length.out = 300)
+)
+
+camino_silla_0$q <- q_A + pend_silla * (camino_silla_0$K - K_A)
+
+# ------------------------------------------------------------
+# Nuevo camino silla
+# Pasa por C y es paralelo al camino silla inicial
+# ------------------------------------------------------------
+
+camino_silla_1 <- data.frame(
+  K = seq(K_min, K_max, length.out = 300)
+)
+
+camino_silla_1$q <- q_C + pend_silla * (camino_silla_1$K - K_C)
+
+# ------------------------------------------------------------
+# Punto B: justo debajo de A, sobre el nuevo camino silla
+# ------------------------------------------------------------
+
+K_B <- K_A
+q_B <- q_C + pend_silla * (K_B - K_C)
+
+# ------------------------------------------------------------
+# Datos de los locus
+# ------------------------------------------------------------
+
+datos <- data.frame(
+  K = seq(K_min, K_max, length.out = 300)
+)
+
+datos$qdot0 <- a - b * datos$K
+datos$qdot1 <- a_nuevo - b * datos$K
+
+# ------------------------------------------------------------
+# Flechas negras sobre el nuevo camino silla, de B hacia C
+# ------------------------------------------------------------
+
+flecha_1 <- data.frame(
+  x = K_B - 0.10,
+  y = q_C + pend_silla * ((K_B - 0.10) - K_C),
+  xend = K_B - 0.75,
+  yend = q_C + pend_silla * ((K_B - 0.75) - K_C)
+)
+
+flecha_2 <- data.frame(
+  x = K_B - 0.95,
+  y = q_C + pend_silla * ((K_B - 0.95) - K_C),
+  xend = K_B - 1.60,
+  yend = q_C + pend_silla * ((K_B - 1.60) - K_C)
+)
+
+# ------------------------------------------------------------
+# Diagrama
+# ------------------------------------------------------------
+
+ggplot(datos, aes(x = K)) +
+  
+  # Locus K punto = 0: q = 1
+  geom_hline(
+    yintercept = 1,
+    color = "#1f77b4",
+    linewidth = 1.2
+  ) +
+  
+  # Locus q punto = 0 inicial
+  geom_line(
+    aes(y = qdot0),
+    color = "#d62728",
+    linewidth = 1.2
+  ) +
+  
+  # Nuevo locus q punto = 0, desplazado hacia abajo
+  geom_line(
+    aes(y = qdot1),
+    color = "#d62728",
+    linewidth = 1.2,
+    linetype = "dashed"
+  ) +
+  
+  # Camino silla inicial
+  geom_line(
+    data = camino_silla_0,
+    aes(x = K, y = q),
+    color = "#2ca02c",
+    linewidth = 1.2,
+    linetype = "dashed"
+  ) +
+  
+  # Nuevo camino silla
+  geom_line(
+    data = camino_silla_1,
+    aes(x = K, y = q),
+    color = "#2ca02c",
+    linewidth = 1.2,
+    linetype = "dotdash"
+  ) +
+  
+  # Flecha 1: sobre nueva línea verde, de B hacia C
+  geom_segment(
+    data = flecha_1,
+    aes(x = x, y = y, xend = xend, yend = yend),
+    color = "black",
+    linewidth = 1,
+    arrow = arrow(length = unit(0.22, "cm"))
+  ) +
+  
+  # Flecha 2: sobre nueva línea verde, de B hacia C
+  geom_segment(
+    data = flecha_2,
+    aes(x = x, y = y, xend = xend, yend = yend),
+    color = "black",
+    linewidth = 1,
+    arrow = arrow(length = unit(0.22, "cm"))
+  ) +
+  
+  # Puntos A, B y C
+  geom_point(aes(x = K_A, y = q_A), size = 3.5, color = "black") +
+  geom_point(aes(x = K_B, y = q_B), size = 3.5, color = "black") +
+  geom_point(aes(x = K_C, y = q_C), size = 3.5, color = "black") +
+  
+  # Etiquetas de puntos
+  annotate(
+    "text",
+    x = K_A + 0.25,
+    y = q_A + 0.07,
+    label = "A",
+    size = 5,
+    fontface = "bold"
+  ) +
+  
+  annotate(
+    "text",
+    x = K_B + 0.25,
+    y = q_B - 0.07,
+    label = "B",
+    size = 5,
+    fontface = "bold"
+  ) +
+  
+  annotate(
+    "text",
+    x = K_C - 0.25,
+    y = q_C - 0.07,
+    label = "C",
+    size = 5,
+    fontface = "bold"
+  ) +
+  
+  # Etiquetas de locus
+  annotate(
+    "text",
+    x = 1.4,
+    y = 1.05,
+    label = expression(dot(K) == 0),
+    color = "#1f77b4",
+    size = 5
+  ) +
+  
+  annotate(
+    "text",
+    x = 2.1,
+    y = a - b * 2.1 + 0.08,
+    label = expression(dot(q) == 0),
+    color = "#d62728",
+    size = 5
+  ) +
+  
+  annotate(
+    "text",
+    x = 2.1,
+    y = a_nuevo - b * 2.1 - 0.10,
+    label = expression(dot(q) == 0~"'"),
+    color = "#d62728",
+    size = 5
+  ) +
+  
+  # Flecha negra vertical de A hacia B
+geom_segment(
+  aes(
+    x = K_A,
+    y = q_A - 0.02,
+    xend = K_B,
+    yend = q_B + 0.02
+  ),
+  color = "black",
+  linewidth = 1,
+  arrow = arrow(length = unit(0.22, "cm"))
+) +
+  
+  # Etiquetas caminos silla
+  annotate(
+    "text",
+    x = 6.1,
+    y = 1.17,
+    label = "Camino silla inicial",
+    color = "#2ca02c",
+    size = 4
+  ) +
+  
+  annotate(
+    "text",
+    x = 5.1,
+    y = 0.92,
+    label = "Nuevo camino silla",
+    color = "#2ca02c",
+    size = 4
+  ) +
+  
+  labs(
+    title = "Desplazamiento del locus de q",
+    subtitle = "Transición desde B hacia C sobre el nuevo camino silla",
+    x = "Capital, K",
+    y = "q de Tobin"
+  ) +
+  
+  coord_cartesian(
+    xlim = c(K_min, K_max),
+    ylim = c(q_min, q_max)
+  ) +
+  
+  theme_minimal(base_size = 13) +
+  theme(
+    plot.title = element_text(face = "bold", hjust = 0.5, size = 15),
+    plot.subtitle = element_text(hjust = 0.5, size = 12),
+    axis.title = element_text(face = "bold"),
+    panel.grid.minor = element_blank(),
+    panel.grid.major = element_line(linewidth = 0.3),
+    legend.position = "none"
+  )
+```
+
+# Inciso (c)
+
+## El gobierno grava la inversión
+
+Con el impuesto, cada unidad de capital cuesta \(\gamma\) más. Por tanto, la condición de inversión se convierte en:
+
+\[
+q=1+\gamma+C'(I_t).
+\]
+
+En el locus \(\dot K=0\), la inversión neta es cero, por lo que:
+
+\[
+I_t=0
+\]
+
+y:
+
+\[
+C'(0)=0.
+\]
+
+Entonces la condición del locus de \(\dot K=0\) se convierte en:
+
+\[
+1+\gamma=q.
+\]
+
+Es decir:
+
+\[
+\dot K=0
+\quad \Longleftrightarrow \quad
+q=1+\gamma.
+\]
+
+Cuando la firma está optimizando, el valor de cada unidad de capital debe ser igual a su precio, donde el precio de mercado de cada unidad está normalizado a 1 y el impuesto agrega \(\gamma\). Como aumenta el costo efectivo de adquirir capital nuevo, el locus \(\dot K=0\) se desplaza hacia arriba.
+
+El locus \(\dot q=0\) no cambia, porque el impuesto a la inversión no cambia directamente los beneficios generados por el capital instalado ni su costo de oportunidad:
+
+\[
+\dot q=0
+\quad \Longleftrightarrow \quad
+rq=\pi'(K).
+\]
+
+Cuando aumenta el costo unitario del capital nuevo, el capital ya instalado se vuelve más valioso. Por lo tanto, \(q\) salta hacia arriba. La economía se posiciona en el nuevo camino silla.
+
+Como ahora el locus de \(\dot K=0\) está en:
+
+\[
+q=1+\gamma,
+\]
+
+y después del salto se cumple:
+
+\[
+1<q<1+\gamma,
+\]
+
+la inversión neta es negativa:
+
+\[
+\dot K<0.
+\]
+
+Esto ocurre porque las empresas reciben un incentivo a des-invertir en forma de subsidio. \(q\) queda por debajo del nuevo costo efectivo de adquirir capital. Por tanto, las empresas desinvierten y reducen su acervo de capital.
+
+El capital cae gradualmente. Conforme cae el acervo de capital, el capital restante se vuelve más valioso. El acervo de capital es menor y su valor es mayor hasta el punto que se deja de des-invertir y se llega al nuevo equilibrio. 
+
+En el diagrama de fase se observa cómo la economía salta del equilibrio inicial en A al punto B, dónde hay el mismo nivel de capital con un mayor valor, aunque por debajo de su costo nuevo. En este punto la economía se encuentran en el nuevo camino silla. Las empresas des-invierten y se mueven a lo largo de esta trayectoria convergente hasta que q alcanza su nuevo valor estable más alto. En el nuevo equilibrio, el nivel de capital óptimo para las firmas es menor. 
+
+
+
+```{r diagrama-fase-desplazamiento-azul-arriba, echo=FALSE, message=FALSE, warning=FALSE, fig.width=7, fig.height=5}
+library(ggplot2)
+library(grid)
+
+# ------------------------------------------------------------
+# Parámetros del diagrama
+# ------------------------------------------------------------
+
+K_min <- 0
+K_max <- 10
+
+q_min <- 0.4
+q_max <- 1.8
+
+# Locus q punto = 0 original: q = a - bK
+a <- 1.65
+b <- 0.08
+
+# Locus K punto = 0 original: q = 1
+q_original <- 1
+
+# Nueva línea azul: q = 1 + gamma
+gamma <- 0.22
+q_nuevo <- 1 + gamma
+
+# ------------------------------------------------------------
+# Puntos A y C
+# ------------------------------------------------------------
+
+# Punto A: intersección de la línea roja original con q = 1
+K_A <- (a - q_original) / b
+q_A <- q_original
+
+# Punto C: intersección de la línea roja original con q = 1 + gamma
+K_C <- (a - q_nuevo) / b
+q_C <- q_nuevo
+
+# ------------------------------------------------------------
+# Camino silla inicial
+# Pasa por A
+# ------------------------------------------------------------
+
+pend_silla <- -0.055
+
+camino_silla_0 <- data.frame(
+  K = seq(K_min, K_max, length.out = 300)
+)
+
+camino_silla_0$q <- q_A + pend_silla * (camino_silla_0$K - K_A)
+
+# ------------------------------------------------------------
+# Nuevo camino silla
+# Paralelo al anterior y pasa por C
+# ------------------------------------------------------------
+
+camino_silla_1 <- data.frame(
+  K = seq(K_min, K_max, length.out = 300)
+)
+
+camino_silla_1$q <- q_C + pend_silla * (camino_silla_1$K - K_C)
+
+# ------------------------------------------------------------
+# Punto B: justo arriba de A, sobre el nuevo camino silla
+# ------------------------------------------------------------
+
+K_B <- K_A
+q_B <- q_C + pend_silla * (K_B - K_C)
+
+# ------------------------------------------------------------
+# Datos de los locus
+# ------------------------------------------------------------
+
+datos <- data.frame(
+  K = seq(K_min, K_max, length.out = 300)
+)
+
+datos$qdot0 <- a - b * datos$K
+
+# ------------------------------------------------------------
+# Flechas negras sobre el nuevo camino silla, de B hacia C
+# ------------------------------------------------------------
+
+flecha_1 <- data.frame(
+  x = K_B - 0.10,
+  y = q_C + pend_silla * ((K_B - 0.10) - K_C),
+  xend = K_B - 0.75,
+  yend = q_C + pend_silla * ((K_B - 0.75) - K_C)
+)
+
+flecha_2 <- data.frame(
+  x = K_B - 0.95,
+  y = q_C + pend_silla * ((K_B - 0.95) - K_C),
+  xend = K_B - 1.60,
+  yend = q_C + pend_silla * ((K_B - 1.60) - K_C)
+)
+
+# ------------------------------------------------------------
+# Diagrama
+# ------------------------------------------------------------
+
+ggplot(datos, aes(x = K)) +
+  
+  # Locus K punto = 0 original: q = 1
+  geom_hline(
+    yintercept = q_original,
+    color = "#1f77b4",
+    linewidth = 1.2
+  ) +
+  
+  # Nuevo locus K punto = 0: q = 1 + gamma
+  geom_hline(
+    yintercept = q_nuevo,
+    color = "#1f77b4",
+    linewidth = 1.2,
+    linetype = "dashed"
+  ) +
+  
+  # Locus q punto = 0 original
+  geom_line(
+    aes(y = qdot0),
+    color = "#d62728",
+    linewidth = 1.2
+  ) +
+  
+  # Camino silla inicial
+  geom_line(
+    data = camino_silla_0,
+    aes(x = K, y = q),
+    color = "#2ca02c",
+    linewidth = 1.2,
+    linetype = "dashed"
+  ) +
+  
+  # Nuevo camino silla
+  geom_line(
+    data = camino_silla_1,
+    aes(x = K, y = q),
+    color = "#2ca02c",
+    linewidth = 1.2,
+    linetype = "dotdash"
+  ) +
+  
+  # Flecha negra vertical de A hacia B
+  geom_segment(
+    aes(
+      x = K_A,
+      y = q_A + 0.02,
+      xend = K_B,
+      yend = q_B - 0.02
+    ),
+    color = "black",
+    linewidth = 1,
+    arrow = arrow(length = unit(0.22, "cm"))
+  ) +
+  
+  # Flecha 1: sobre nueva línea verde, de B hacia C
+  geom_segment(
+    data = flecha_1,
+    aes(x = x, y = y, xend = xend, yend = yend),
+    color = "black",
+    linewidth = 1,
+    arrow = arrow(length = unit(0.22, "cm"))
+  ) +
+  
+  # Flecha 2: sobre nueva línea verde, de B hacia C
+  geom_segment(
+    data = flecha_2,
+    aes(x = x, y = y, xend = xend, yend = yend),
+    color = "black",
+    linewidth = 1,
+    arrow = arrow(length = unit(0.22, "cm"))
+  ) +
+  
+  # Puntos A, B y C
+  geom_point(aes(x = K_A, y = q_A), size = 3.5, color = "black") +
+  geom_point(aes(x = K_B, y = q_B), size = 3.5, color = "black") +
+  geom_point(aes(x = K_C, y = q_C), size = 3.5, color = "black") +
+  
+  # Etiquetas de puntos
+  annotate(
+    "text",
+    x = K_A + 0.25,
+    y = q_A - 0.07,
+    label = "A",
+    size = 5,
+    fontface = "bold"
+  ) +
+  
+  annotate(
+    "text",
+    x = K_B + 0.25,
+    y = q_B + 0.07,
+    label = "B",
+    size = 5,
+    fontface = "bold"
+  ) +
+  
+  annotate(
+    "text",
+    x = K_C - 0.25,
+    y = q_C + 0.07,
+    label = "C",
+    size = 5,
+    fontface = "bold"
+  ) +
+  
+  # Etiquetas de los locus
+  annotate(
+    "text",
+    x = 1.4,
+    y = q_original - 0.05,
+    label = expression(dot(K) == 0),
+    color = "#1f77b4",
+    size = 5
+  ) +
+  
+  annotate(
+    "text",
+    x = 1.4,
+    y = q_nuevo + 0.05,
+    label = expression(dot(K) == 0~"'"),
+    color = "#1f77b4",
+    size = 5
+  ) +
+  
+  annotate(
+    "text",
+    x = 2.1,
+    y = a - b * 2.1 + 0.08,
+    label = expression(dot(q) == 0),
+    color = "#d62728",
+    size = 5
+  ) +
+  
+  # Etiqueta 1 + gamma en el eje vertical
+  annotate(
+    "text",
+    x = 0.25,
+    y = q_nuevo + 0.05,
+    label = expression(1 + gamma),
+    color = "#1f77b4",
+    size = 5,
+    fontface = "bold"
+  ) +
+  
+  annotate(
+    "text",
+    x = 0.25,
+    y = q_original - 0.05,
+    label = "1",
+    color = "#1f77b4",
+    size = 5,
+    fontface = "bold"
+  ) +
+  
+  # Etiquetas caminos silla
+  annotate(
+    "text",
+    x = 6.2,
+    y = 1.12,
+    label = "Camino silla inicial",
+    color = "#2ca02c",
+    size = 4
+  ) +
+  
+  annotate(
+    "text",
+    x = 4.9,
+    y = 1.35,
+    label = "Nuevo camino silla",
+    color = "#2ca02c",
+    size = 4
+  ) +
+  
+  labs(
+    title = "Desplazamiento hacia arriba del locus de acumulación de capital",
+    subtitle = "Transición desde A hacia B y luego desde B hacia C",
+    x = "Capital, K",
+    y = "q de Tobin"
+  ) +
+  
+  coord_cartesian(
+    xlim = c(K_min, K_max),
+    ylim = c(q_min, q_max)
+  ) +
+  
+  theme_minimal(base_size = 13) +
+  theme(
+    plot.title = element_text(face = "bold", hjust = 0.5, size = 15),
+    plot.subtitle = element_text(hjust = 0.5, size = 12),
+    axis.title = element_text(face = "bold"),
+    panel.grid.minor = element_blank(),
+    panel.grid.major = element_line(linewidth = 0.3),
+    legend.position = "none"
+  )
+```
+
