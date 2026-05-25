@@ -13,21 +13,24 @@ editor_options:
 ---
 
 ```{r setup, include=FALSE}
-knitr::opts_chunk$set(echo = TRUE)
+knitr::opts_chunk$set(echo = FALSE)
 ```
+
 \newpage
+
 # Ejercicio 4:
+
 Utilizando el código distribuido en el repositorio de la clase, desarolle su intuición sobre el problema de inversión.
 
-**(a) Función valor, función de política y trayectoria (parámetros base)** 
-Grafique la función valor y la función de política para distintos valores del espacio de estados y grafíque una realización aleatoria (con semilla ja) del nivel de capital de la empresa.
+**(a) Función valor, función de política y trayectoria (parámetros base)** Grafique la función valor y la función de política para distintos valores del espacio de estados y grafíque una realización aleatoria (con semilla ja) del nivel de capital de la empresa.
 
 Se resolvió el modelo utilizando los parámetros base del código proporcionado, donde la concavidad de la función de producción es Alpha = 0.5. Se utilizó el método de iteración de la función valor hasta alcanzar la convergencia.
 
 A partir de la solución, se obtuvieron la Función Valor y la Función de Política (la decisión de inversión óptima para cada nivel de capital y productividad). Finalmente, se simuló una trayectoria temporal del capital para una empresa, partiendo de un estado inicial y sometida a una serie de realizaciones aleatorias de la productividad.
 
 *Gráficas con la Función Valor, la Función de Política y la Trayectoria del Capital base*
-```{r}
+
+```{r inciso_a, echo=FALSE}
 # --- Parámetros Iniciales (Base) ---
 N <- 500         # Cardinalidad del espacio de capital
 M <- 5           # Cardinalidad del espacio de productividad
@@ -101,14 +104,15 @@ sol_a <- resolver_modelo(Alpha, P, M, N)
 matplot(K, t(sol_a$V), type = "l", main = "Función Valor (Base)", xlab = "K", ylab = "V(K)")
 
 ```
-```{r}
+
+```{r inciso_a_2, echo=FALSE}
 # 2. Segunda Gráfica: Función de Política
 matplot(K, t(sol_a$HReal), type = "l", main = "Función de Política K' (Base)", xlab = "K", ylab = "K'")
 abline(0, 1, lty = 2) # Línea de 45 grados
 
 ```
 
-```{r}
+```{r inciso_a_3, echo=FALSE}
 # 3. Tercera Gráfica: Trayectoria del Capital
 set.seed(123) # Semilla fija
 MaxT <- 100
@@ -126,11 +130,9 @@ plot(K_level_hist, type="l", main="Trayectoria del Capital (Base)", xlab="Tiempo
 
 ```
 
-
 Las gráficas muestran el valor descontado esperado de la empresa, su regla de decisión para el capital futuro y cómo la empresa ajusta su nivel de capital real a lo largo del tiempo en respuesta a los choques de productividad observados.
 
-**(b) Modificación de un parámetro: Concavidad de la función de producción (Equipo 2)** 
-Modifique un parámetro del problema (equipo 2: concavidad de la función de producción), incluya las líneas de código modi cadas, y nuevamente grafíque la función valor, la función de política y la trayectoria para la misma realización aleatoria de la productividad y compárelas con lo obtenido en el inciso anterior.
+**(b) Modificación de un parámetro: Concavidad de la función de producción (Equipo 2)** Modifique un parámetro del problema (equipo 2: concavidad de la función de producción), incluya las líneas de código modi cadas, y nuevamente grafíque la función valor, la función de política y la trayectoria para la misma realización aleatoria de la productividad y compárelas con lo obtenido en el inciso anterior.
 
 Con el fin de analizar el impacto de los parámetros estructurales en las decisiones de inversión, se modificó la concavidad de la función de producción, incrementando el parámetro Alpha de 0.5 a 0.6 (Equipo 2). Este cambio implica que la productividad marginal del capital decrece más lentamente, lo que teóricamente incentiva a la empresa a acumular un mayor nivel de capital.
 
@@ -138,7 +140,7 @@ Utilizando la misma semilla aleatoria para los choques de productividad del inci
 
 *Gráfica de Comparación de Trayectorias de Capital (Curva Azul vs Curva Roja)*
 
-```{r}
+```{r inicso_b, echo=FALSE}
 # --- Resolucion inciso (b) ---
 # Equipo 2: Cambiamos Alpha de 0.5 a 0.7
 Alpha_new <- 0.6 
@@ -160,4 +162,5 @@ lines(K_level_hist_b, col="red", lwd=2)
 legend("bottomright", legend=c("Base (Alpha=0.5)", "Modif (Alpha=0.6)"), 
        col=c("blue", "red"), lwd=2)
 ```
+
 En la gráfica comparativa se puede observar de manera clara el efecto del cambio de parámetro. Ante la misma secuencia de choques exógenos, la empresa con una función de producción menos cóncava (Alpha = 0.6) decide invertir de manera más agresiva, acumulando significativamente más capital en el largo plazo en comparación con el escenario base. Esto confirma la intuición económica de que mayores retornos marginales sostenidos justifican enfrentar los costos de ajuste para mantener una mayor escala de producción.
