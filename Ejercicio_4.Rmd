@@ -1,0 +1,163 @@
+---
+title: "Ejercicio 4"
+author: "Brenda Evelyn Villegas García"
+output: 
+  pdf_document:
+    number_sections: false
+header-includes:
+  - \usepackage[spanish]{babel}
+  - \usepackage{setspace}
+  - \onehalfspacing
+editor_options: 
+  chunk_output_type: inline
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+\newpage
+# Ejercicio 4:
+Utilizando el código distribuido en el repositorio de la clase, desarolle su intuición sobre el problema de inversión.
+
+**(a) Función valor, función de política y trayectoria (parámetros base)** 
+Grafique la función valor y la función de política para distintos valores del espacio de estados y grafíque una realización aleatoria (con semilla ja) del nivel de capital de la empresa.
+
+Se resolvió el modelo utilizando los parámetros base del código proporcionado, donde la concavidad de la función de producción es Alpha = 0.5. Se utilizó el método de iteración de la función valor hasta alcanzar la convergencia.
+
+A partir de la solución, se obtuvieron la Función Valor y la Función de Política (la decisión de inversión óptima para cada nivel de capital y productividad). Finalmente, se simuló una trayectoria temporal del capital para una empresa, partiendo de un estado inicial y sometida a una serie de realizaciones aleatorias de la productividad.
+
+*Gráficas con la Función Valor, la Función de Política y la Trayectoria del Capital base*
+```{r}
+# --- Parámetros Iniciales (Base) ---
+N <- 500         # Cardinalidad del espacio de capital
+M <- 5           # Cardinalidad del espacio de productividad
+KMin <- 1; KMax <- 10^5
+AMin <- 1; AMax <- 5
+
+Alpha <- 0.5     # Concavidad de la función de producción (Base)
+Costo_Convexo <- 2
+Beta <- 0.95
+Costo_NoConvexo <- 0.001
+
+# --- Representación Numérica ---
+IndexN <- 1:N
+IndexM <- 1:M
+K <- exp(log(KMin) + (IndexN-1)/(N-1)*(log(KMax)-log(KMin)))
+A <- exp(log(AMin) + (IndexM-1)/(M-1)*(log(AMax)-log(AMin)))
+
+# --- Matriz de Transición P ---
+P <- t(matrix(c(0.6, 0.2, 0.1, 0.1, 0, 
+                 0.15, 0.55, 0.15, 0.1, 0.05, 
+                 0.1, 0.15, 0.5, 0.15, 0.1, 
+                 0.05, 0.1, 0.15, 0.55, 0.15, 
+                 0, 0.1, 0.1, 0.2, 0.6), nrow=M, ncol=M))
+PAcc <- P %*% upper.tri(matrix(1.0, M, M), diag=TRUE)
+
+# --- Matrices Auxiliares ---
+KMatrix <- matrix(data=rep(K, M), nrow=M, ncol=N, byrow=TRUE)
+AMatrix <- matrix(data=rep(A, N), nrow=M, ncol=N, byrow=FALSE)
+KInicial <- matrix(data=K, nrow=N, ncol=N, byrow=FALSE)
+KFinal <- matrix(data=K, nrow=N, ncol=N, byrow=TRUE)
+Matriz_I <- KFinal - KInicial
+Matriz_CI <- Costo_Convexo * KInicial * (Matriz_I/KInicial)^2
+Matriz_I_Dif_0 <- (Matriz_I < 0) + (Matriz_I > 0)
+Matriz_CostoNoConvexo <- Costo_NoConvexo * Matriz_I_Dif_0
+
+# FUNCIÓN PARA RESOLVER EL MODELO
+
+resolver_modelo <- function(Alpha_param, P_matrix, M_val, N_val) {
+   V0 <- matrix(0, nrow=M_val, ncol=N_val)
+   V1 <- V0
+   HIndex <- V0
+   HReal <- V0
+   
+   Matriz_Ventas <- AMatrix * (KMatrix^Alpha_param)
+   
+   TTMax <- 100
+   for (TT in 1:TTMax) {
+     EV <- P_matrix %*% V0
+     for (i in 1:M_val) {
+       for (j in 1:N_val) {
+         VijOptions <- Matriz_Ventas[i,j] - Matriz_CI[j,] - Matriz_I[j,] - 
+                       Matriz_CostoNoConvexo[j,] + Beta * EV[i,]
+         V1[i,j] <- max(VijOptions)
+         HIndex[i,j] <- which.max(VijOptions)
+         HReal[i,j] <- K[HIndex[i,j]]
+       }
+     }
+     distancia <- sum(abs(V1 - V0))
+     if (distancia < 1e-4) break # Convergencia temprana
+     V0 <- V1
+   }
+   return(list(V = V0, HReal = HReal, HIndex = HIndex))
+ }
+
+# --- Resolución Inciso (a) ---
+sol_a <- resolver_modelo(Alpha, P, M, N)
+
+# --- Graficación Inciso (a) ---
+#par(mfrow=c(3,1))
+# 1. Primera Gráfica: Función Valor
+matplot(K, t(sol_a$V), type = "l", main = "Función Valor (Base)", xlab = "K", ylab = "V(K)")
+
+```
+```{r}
+# 2. Segunda Gráfica: Función de Política
+matplot(K, t(sol_a$HReal), type = "l", main = "Función de Política K' (Base)", xlab = "K", ylab = "K'")
+abline(0, 1, lty = 2) # Línea de 45 grados
+
+```
+
+```{r}
+# 3. Tercera Gráfica: Trayectoria del Capital
+set.seed(123) # Semilla fija
+MaxT <- 100
+A_hist <- numeric(MaxT)
+K_idx_hist <- numeric(MaxT)
+A_hist[1] <- round(M/2)
+K_idx_hist[1] <- round(N/2)
+
+for (t in 1:(MaxT-1)) {
+   K_idx_hist[t+1] <- sol_a$HIndex[A_hist[t], K_idx_hist[t]]
+   A_hist[t+1] <- sum(runif(1,0,1) > PAcc[A_hist[t],]) + 1
+ }
+K_level_hist <- K[K_idx_hist]
+plot(K_level_hist, type="l", main="Trayectoria del Capital (Base)", xlab="Tiempo", ylab="K")
+
+```
+
+
+Las gráficas muestran el valor descontado esperado de la empresa, su regla de decisión para el capital futuro y cómo la empresa ajusta su nivel de capital real a lo largo del tiempo en respuesta a los choques de productividad observados.
+
+**(b) Modificación de un parámetro: Concavidad de la función de producción (Equipo 2)** 
+Modifique un parámetro del problema (equipo 2: concavidad de la función de producción), incluya las líneas de código modi cadas, y nuevamente grafíque la función valor, la función de política y la trayectoria para la misma realización aleatoria de la productividad y compárelas con lo obtenido en el inciso anterior.
+
+Con el fin de analizar el impacto de los parámetros estructurales en las decisiones de inversión, se modificó la concavidad de la función de producción, incrementando el parámetro Alpha de 0.5 a 0.6 (Equipo 2). Este cambio implica que la productividad marginal del capital decrece más lentamente, lo que teóricamente incentiva a la empresa a acumular un mayor nivel de capital.
+
+Utilizando la misma semilla aleatoria para los choques de productividad del inciso anterior, se simuló la nueva trayectoria del capital para observar la transición y la convergencia a los nuevos niveles de equilibrio.
+
+*Gráfica de Comparación de Trayectorias de Capital (Curva Azul vs Curva Roja)*
+
+```{r}
+# --- Resolucion inciso (b) ---
+# Equipo 2: Cambiamos Alpha de 0.5 a 0.7
+Alpha_new <- 0.6 
+sol_b <- resolver_modelo(Alpha_new, P, M, N)
+
+# --- Simulación para Inciso (b) ---
+set.seed(123) # Misma semilla para comparar
+K_idx_hist_b <- numeric(MaxT)
+K_idx_hist_b[1] <- round(N/2)
+for (t in 1:(MaxT-1)) {
+  K_idx_hist_b[t+1] <- sol_b$HIndex[A_hist[t], K_idx_hist_b[t]]
+}
+K_level_hist_b <- K[K_idx_hist_b]
+
+# --- Graficación Comparativa ---
+plot(K_level_hist, type="l", col="blue", lwd=2, 
+     main="Comparación de Trayectorias", xlab="Tiempo", ylab="K")
+lines(K_level_hist_b, col="red", lwd=2)
+legend("bottomright", legend=c("Base (Alpha=0.5)", "Modif (Alpha=0.6)"), 
+       col=c("blue", "red"), lwd=2)
+```
+En la gráfica comparativa se puede observar de manera clara el efecto del cambio de parámetro. Ante la misma secuencia de choques exógenos, la empresa con una función de producción menos cóncava (Alpha = 0.6) decide invertir de manera más agresiva, acumulando significativamente más capital en el largo plazo en comparación con el escenario base. Esto confirma la intuición económica de que mayores retornos marginales sostenidos justifican enfrentar los costos de ajuste para mantener una mayor escala de producción.
